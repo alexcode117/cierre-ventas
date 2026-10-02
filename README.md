@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cierre de Ventas
 
-## Getting Started
+Convierte el Excel mensual de indicadores del equipo de ventas en un dashboard interactivo y en un informe PDF que queda como constancia del cierre.
 
-First, run the development server:
+- **Sin servidor ni base de datos.** El Excel se procesa en el navegador; nada se sube ni se guarda.
+- **Comparación opcional** con el Excel del mes anterior: variaciones por vendedor, cambios de estado e indicadores incumplidos dos meses seguidos.
+- **Informe PDF** con la huella SHA-256 de cada archivo, para comprobar de qué Excel exacto salió.
+
+## Qué muestra
+
+| Pestaña | Contenido |
+|---|---|
+| Resumen | Sacos y galones contra meta, puntaje promedio, venta cruzada, hallazgos priorizados, puntos perdidos por indicador, puntos al alcance y, si hay mes anterior, la evolución del puntaje de cada vendedor |
+| Vendedores | Ranking con puntaje Pegutil/Pruven, mapa de cumplimiento (% de meta, lo que falta, puntos o cambio vs mes anterior), detalle por vendedor y revisión de inconsistencias del archivo |
+| Zonas y productos | Ventas por zona contra meta, venta cruzada, participación, cumplimiento por producto Pruven, metas del próximo mes con nivel de riesgo y reconocimientos |
+| Simulador | Mueve el resultado de cada indicador y recalcula puntaje y estado del vendedor |
+
+## Formato del Excel
+
+El lector sigue la estructura del libro `INDICADORES.xlsx`:
+
+- **Una hoja por vendedor o zona** con dos bloques de indicadores (Pegutil y Pruven). Cada bloque tiene una fila de encabezado con `INDICADOR`, `OBJETIVO`, `REAL`, `%`, `CUMPLE` y `VALORACION`, y un título como `INDICADORES MENSUALES ... (ESTABLE)`. Debajo del último bloque van las filas `META`, `VENTAS` y `% ALCANZADO` de galones.
+- **`RESULTADOS`**: título `RESULTADOS <MES> <AÑO>`, tabla `ZONA / Vendedor / Sacos Vendidos / Galones Vendidos` con filas `TOTAL`, `META` y `% ALCANZADO`, y los bloques `VARIABLE PEGUTL` y `VARIABLE PRUVEN`.
+- **`METAS`**: título `METAS MES <MES>` y tabla `VENDEDOR / SACOS / CAUCHO / ...`.
+- La hoja `CALCULOS` se ignora.
+
+Las celdas se buscan por su texto, no por posición fija, así que mover tablas de lugar no rompe la lectura. Si cambia el nombre de una columna o de una hoja, el ajuste se hace en `src/lib/parser.ts`.
+
+Reglas de puntaje (en `src/lib/analysis.ts` y `src/lib/format.ts`): cada línea suma hasta 12 puntos; Productivo ≥ 10, Estable 4 a 9,5, Crítico < 4. Un indicador se cumple con el 100% del objetivo, salvo cobranza, que se cumple con el 90%.
+
+## Desarrollo
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre http://localhost:3000 y usa **Probar con archivos de ejemplo**. Los ejemplos de `public/ejemplos/` tienen datos ficticios y se regeneran con:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node scripts/generate-examples.mjs
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Pruebas (lector, análisis, comparación y generación del PDF; los PDF de prueba quedan en `tests/.output/`):
 
-## Learn More
+```bash
+npx vitest run
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Publicar en Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Sube el repositorio a GitHub.
+2. En [vercel.com/new](https://vercel.com/new), importa el repositorio. Vercel detecta Next.js; no hace falta configurar nada ni definir variables de entorno.
+3. Cada `git push` a la rama principal publica una nueva versión.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+El sitio es estático (`output: 'export'` en `next.config.ts`), así que también puede publicarse en cualquier hosting de archivos estáticos con el contenido de `out/` tras `npm run build`.
 
-## Deploy on Vercel
+## Estructura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/lib/          lectura del Excel, análisis, comparación y huella SHA-256 (sin dependencias de la interfaz)
+src/components/   pantalla de carga, dashboard, gráficas (ECharts) e informe PDF (react-pdf)
+scripts/          generador de los Excel de ejemplo
+tests/            pruebas con Vitest
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Colores
+
+La paleta está en las variables de `src/app/globals.css` (bloque `:root` y su versión oscura). Para aplicar colores corporativos basta con cambiar ese bloque; el PDF usa los mismos tonos definidos al inicio de `src/components/pdf/Report.tsx`.
