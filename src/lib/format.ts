@@ -24,9 +24,7 @@ export function monthKey(month: string | null): string | null {
   return i >= 0 && y ? `${y}-${String(i + 1).padStart(2, '0')}` : null;
 }
 
-export function statusOf(score: number): Status {
-  return score >= 10 ? 'PRODUCTIVO' : score >= 4 ? 'ESTABLE' : 'CRITICO';
-}
+export { statusOf } from './rules';
 
 export const STATUS_LABEL: Record<Status, string> = { PRODUCTIVO: 'Productivo', ESTABLE: 'Estable', CRITICO: 'Crítico' };
 

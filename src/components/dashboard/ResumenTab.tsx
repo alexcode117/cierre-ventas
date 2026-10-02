@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { AlertTriangle, ArrowRight, Info, TrendingUp, X } from 'lucide-react';
 import { fmt, STATUS_LABEL, titleCase } from '@/lib/format';
+import type { TeamMetric } from '@/lib/analysis';
 import type { Session } from '@/lib/load';
 import type { Insight, Status } from '@/lib/types';
 import { DumbbellChart, PointLossChart } from '../charts/charts';
@@ -34,19 +35,18 @@ export function InsightCard({ i }: { i: Insight }) {
 export default function ResumenTab({ session, onGo }: { session: Session; onGo: (t: TabKey) => void }) {
   const { cur, analysis: a, comparison: c } = session;
   const d = cur.report;
-  const R = d.results;
   const count = (s: Status) => d.sellers.filter((x) => x.status === s).length;
-  const insights = [...(c?.insights ?? []), ...a.insights].sort((x, y) => ({ crit: 0, warn: 1, good: 2, info: 3 })[x.sev] - ({ crit: 0, warn: 1, good: 2, info: 3 })[y.sev]);
+  const insights = session.insights;
   const prevLabel = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')) : '';
   const curLabel = titleCase((d.month ?? 'Este mes').replace(/\s*20\d\d/, ''));
 
   return (
     <div className="grid gap-7">
       <motion.section variants={stagger} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen del mes">
-        <Kpi label="Pegutil · sacos" value={R?.total.sacos ?? null} meta={R?.meta.sacos ?? null} pct={a.sacosPct}
-          delta={c && <Delta cur={c.team.sacos.cur} prev={c.team.sacos.prev} pct label={`vs ${prevLabel.toLowerCase()}`} />} />
-        <Kpi label="Pruven · galones" value={R?.total.galones ?? null} meta={R?.meta.galones ?? null} pct={a.galonesPct}
-          delta={c && <Delta cur={c.team.galones.cur} prev={c.team.galones.prev} pct label={`vs ${prevLabel.toLowerCase()}`} />} />
+        <Kpi label="Pegutil · sacos" m={a.team.sacos} unit="sacos"
+          delta={c && <Delta cur={c.team.sacos.cur} prev={c.team.sacos.prev} pct label={`${a.team.sacos.excluded.length ? 'del total ' : ''}vs ${prevLabel.toLowerCase()}`} />} />
+        <Kpi label="Pruven · galones" m={a.team.galones} unit="gal"
+          delta={c && <Delta cur={c.team.galones.cur} prev={c.team.galones.prev} pct label={`${a.team.galones.excluded.length ? 'del total ' : ''}vs ${prevLabel.toLowerCase()}`} />} />
         <motion.div variants={fadeUp}>
           <Card className="grid h-full content-start gap-2 px-4.5 py-4">
             <span className="eyebrow">Puntaje promedio</span>
@@ -110,7 +110,8 @@ export default function ResumenTab({ session, onGo }: { session: Session; onGo: 
   );
 }
 
-function Kpi({ label, value, meta, pct, delta }: { label: string; value: number | null; meta: number | null; pct: number | null; delta?: React.ReactNode }) {
+function Kpi({ label, m, unit, delta }: { label: string; m: TeamMetric; unit: string; delta?: React.ReactNode }) {
+  const { sold: value, meta, pct } = m;
   return (
     <motion.div variants={fadeUp}>
       <Card className="grid h-full content-start gap-2 px-4.5 py-4">
@@ -118,6 +119,11 @@ function Kpi({ label, value, meta, pct, delta }: { label: string; value: number 
         <div className="display text-[34px] leading-none font-extrabold"><CountUp value={value} /><small className="ml-1.5 font-sans text-sm font-medium text-ink-3">/ {fmt(meta)}</small></div>
         <Meter pct={pct} />
         <div className="text-[13px] text-ink-2">{fmt(pct, 1)}% de la meta</div>
+        {m.excluded.length > 0 && (
+          <p className="text-[12px] leading-snug text-ink-3">
+            Sin contar {m.excluded.map((z) => `${z.vendedor && z.vendedor !== '-' ? z.vendedor : z.zona} (${fmt(z.value)} ${unit})`).join(', ')}: no {m.excluded.length > 1 ? 'tienen' : 'tiene'} meta individual. Total vendido: {fmt(m.total)} {unit}.
+          </p>
+        )}
         {delta}
       </Card>
     </motion.div>

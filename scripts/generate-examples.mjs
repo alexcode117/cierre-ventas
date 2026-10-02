@@ -57,7 +57,33 @@ function sellerSheet(s) {
   return XLSX.utils.aoa_to_sheet(aoa);
 }
 
-function build(mes, sellers, extra, awards, metas) {
+// Hoja CALCULOS con la misma estructura de bloques del libro original. `diff` introduce diferencias a propósito.
+function calculosSheet(sellers, extra, diff = {}) {
+  const who = (s) => s.corto ? s.corto[0] + s.corto.slice(1).toLowerCase() : s.zona;
+  const d = (s) => diff[s.sheet] ?? {};
+  const rows = [[], [null, 'Pegutil', 'agosto'], [null, 'VENDEDOR', 'Meta sacos', 'Ventas', '% Alcanzado']];
+  const list = sellers.map((s) => [who(s), d(s).metaSacos ?? s.peg.sacos[0], s.sacosResultados ?? s.peg.sacos[1]]);
+  for (const [n, , v] of extra.map((z) => [z[1].split(' ')[0], 3500, z[2]])) list.push([n, 3500, v]);
+  for (const [n, m, v] of list) rows.push([null, n, m, v, (v / m) * 100]);
+  rows.push([null, null, list.reduce((a, r) => a + r[1], 0), list.reduce((a, r) => a + r[2], 0)], []);
+  for (const [name, k] of PRODUCTS) {
+    const label = { caucho: 'Caucho', mantutil: 'Mantutil', esmaltes: 'Esmalte', utiltop: 'Util top', metyl: 'Metylutil', oxido: 'Oxido' }[k];
+    rows.push([null, 'PRUVEN', 'agosto', label], [null, 'VENDEDOR', `Meta ${label.toLowerCase()}`, 'Ventas', '% Alcanzado']);
+    const pl = sellers.map((s) => [who(s), s.pru[k][0], d(s)[k] ?? s.pru[k][1]]);
+    for (const [n, m, v] of pl) rows.push([null, n, m, v, (v / m) * 100]);
+    rows.push([null, null, pl.reduce((a, r) => a + r[1], 0), pl.reduce((a, r) => a + r[2], 0)], []);
+    void name;
+  }
+  rows.push([null, 'TOTAL GALONES'], [null, 'VENDEDOR', 'Meta', 'Ventas', '%']);
+  const gl = sellers.map((s) => [who(s), d(s).galMeta ?? s.galMeta, s.galones]);
+  for (const [n, m, v] of gl) rows.push([null, n, m, v, (v / m) * 100]);
+  rows.push([null, 'TOTAL GALONES ', gl.reduce((a, r) => a + r[1], 0), gl.reduce((a, r) => a + r[2], 0) + extra.reduce((a, z) => a + z[3], 0)], []);
+  rows.push([null, 'CLIENTES NUEVOS PEGUTIL', null, null, null, 'CLIENTES NUEVOS PRUVEN'], [null, 'VENDEDOR', 'Meta', 'Logrado', null, 'VENDEDOR', 'Meta', 'Logrado']);
+  for (const s of sellers) rows.push([null, who(s), 2, s.peg.nc, null, who(s), 2, d(s).ncPru ?? s.pru.nc]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+
+function build(mes, sellers, extra, awards, metas, calc) {
   const wb = XLSX.utils.book_new();
   for (const s of sellers) XLSX.utils.book_append_sheet(wb, sellerSheet(s), s.sheet);
 
@@ -78,6 +104,7 @@ function build(mes, sellers, extra, awards, metas) {
   const general = cols.map((_, i) => metas.next.reduce((a, r) => a + (r[i + 1] ?? 0), 0));
   const met = [[null, metas.title], [null, 'VENDEDOR', ...cols], ...metas.next.map((r) => [null, ...r]), [null, 'Meta General', ...general]];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(met), 'METAS');
+  if (calc) XLSX.utils.book_append_sheet(wb, calculosSheet(sellers, extra, calc), 'CALCULOS');
   return wb;
 }
 
@@ -94,7 +121,7 @@ const agosto = [
     pru: base({ caucho: [700, 640], mantutil: [100, 104], esmaltes: [120, 61], utiltop: [32, 35.2], metyl: [7, 4], oxido: [144, 80], cobr: 0.9, nc: 3, cart: [44.8, 35] }),
     galMeta: 1100, galones: 924.2 },
   { sheet: 'PATRICIA YANEZ', corto: 'PATRICIA', vendedor: 'Patricia Yánez', zona: 'Centro Este', zonaTitulo: 'CENTRO ESTE',
-    peg: { sacos: [2800, 2510], cobr: 0.8, nc: 4, cart: [42, 25], sacosOverride: { ok: true } },
+    peg: { sacos: [2800, 2510], cobr: 0.8, nc: 5, cart: [42, 25], sacosOverride: { ok: true } },
     pru: base({ caucho: [600, 310], mantutil: [80, 76], esmaltes: [100, 88.5], utiltop: [32, 44.1], metyl: [7, 8.5], oxido: [144, 41], cobr: 0.9, nc: 2, cart: [42, 35] }),
     galMeta: 960, galones: 568.1, sacosResultados: 2632 },
   { sheet: 'ZONA LLANOS', corto: '', vendedor: '-', zona: 'Llanos', zonaTitulo: 'ZONA LLANOS',
@@ -131,6 +158,9 @@ const metasAgo = [
 
 mkdirSync('public/ejemplos', { recursive: true });
 const write = (wb, file) => writeFileSync(file, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
-write(build('AGOSTO 2026', agosto, [['Centro Norte', 'Daniela Chirinos', 4410, 561.2]], awards(['LAURA', 'MARIO']), { title: 'METAS MES SEPTIEMBRE', team: [16800, 4290], next: metasSep }), 'public/ejemplos/ejemplo-agosto-2026.xlsx');
+// Agosto incluye CALCULOS con tres diferencias sembradas y un empate en clientes nuevos (Mario y Patricia).
+// La meta de galones del equipo (4.290) es la suma de las hojas: no incluye a Daniela, que no tiene hoja.
+write(build('AGOSTO 2026', agosto, [['Centro Norte', 'Daniela Chirinos', 4410, 561.2]], awards(['LAURA', 'MARIO']), { title: 'METAS MES SEPTIEMBRE', team: [16800, 4290], next: metasSep },
+  { 'PATRICIA YANEZ': { metaSacos: 2900 }, 'ZONA LLANOS': { esmaltes: 33.75 }, 'MARIO TORREALBA': { galMeta: 1000 } }), 'public/ejemplos/ejemplo-agosto-2026.xlsx');
 write(build('JULIO 2026', julio, [['Centro Norte', 'Daniela Chirinos', 4120, 598]], awards(['LAURA', 'PATRICIA']), { title: 'METAS MES AGOSTO', team: [16800, 4290], next: metasAgo }), 'public/ejemplos/ejemplo-julio-2026.xlsx');
 console.log('Ejemplos generados en public/ejemplos/');

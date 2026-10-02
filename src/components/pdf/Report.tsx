@@ -2,7 +2,10 @@ import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
 import { prevItem } from '@/lib/compare';
 import { band, fmt, prettyItem, STATUS_LABEL, titleCase } from '@/lib/format';
+import { AWARD_STATUS_LABEL, type AwardStatus } from '@/lib/awards';
+import type { TeamMetric } from '@/lib/analysis';
 import type { LoadedFile, Session } from '@/lib/load';
+import { RULES_TEXT } from '@/lib/rules';
 import type { Insight, Status } from '@/lib/types';
 
 // Helvetica (fuente estándar del PDF) solo cubre Latin-1: se reemplazan los símbolos que no incluye.
@@ -16,6 +19,7 @@ const C = {
   warn: '#fab219', warnBg: '#fdf1d6', warnInk: '#8a5a00',
   crit: '#d03b3b', critBg: '#f9e1e1', critInk: '#a32626',
 };
+const AWARD_C: Record<AwardStatus, [string, string]> = { ok: [C.goodBg, C.goodInk], tie: [C.warnBg, C.warnInk], mismatch: [C.critBg, C.critInk], unverifiable: [C.line2, C.ink2] };
 const STATUS_C: Record<Status, [string, string]> = { PRODUCTIVO: [C.goodBg, C.goodInk], ESTABLE: [C.warnBg, C.warnInk], CRITICO: [C.critBg, C.critInk] };
 const BAND_C = { good: [C.goodBg, C.goodInk], warn: [C.warnBg, C.warnInk], crit: [C.critBg, C.critInk], none: ['#ffffff', C.ink3] } as const;
 const SEV_C = { crit: C.crit, warn: C.warn, good: C.good, info: C.accent };
@@ -113,7 +117,7 @@ export default function ReportDoc({ s }: { s: Session }) {
   const R = d.results;
   const month = titleCase(d.month ?? 'Mes sin identificar');
   const prevShort = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')).toLowerCase() : '';
-  const insights = [...(c?.insights ?? []), ...a.insights].sort((x, y) => ({ crit: 0, warn: 1, good: 2, info: 3 })[x.sev] - ({ crit: 0, warn: 1, good: 2, info: 3 })[y.sev]);
+  const insights = s.insights;
   const when = s.generatedAt.toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
   const zonas = R?.zonas ?? [];
   const metaOf = (sheet: string | null) => d.sellers.find((x) => x.sheet === sheet);
@@ -148,8 +152,8 @@ export default function ReportDoc({ s }: { s: Session }) {
         </View>
 
         <View style={[st.row, { gap: 8, marginTop: 40 }]}>
-          <Kpi label="Pegutil · sacos" value={fmt(R?.total.sacos)} sub={`${fmt(a.sacosPct, 1)}% de la meta (${fmt(R?.meta.sacos)})`} extra={c ? signedPct(pctDelta(c.team.sacos.cur, c.team.sacos.prev), prevShort) : undefined} />
-          <Kpi label="Pruven · galones" value={fmt(R?.total.galones)} sub={`${fmt(a.galonesPct, 1)}% de la meta (${fmt(R?.meta.galones)})`} extra={c ? signedPct(pctDelta(c.team.galones.cur, c.team.galones.prev), prevShort) : undefined} />
+          <Kpi label="Pegutil · sacos" value={fmt(a.team.sacos.sold)} sub={teamSub(a.team.sacos, 'sacos')} extra={c ? signedPct(pctDelta(c.team.sacos.cur, c.team.sacos.prev), `${a.team.sacos.excluded.length ? 'total ' : ''}${prevShort}`) : undefined} />
+          <Kpi label="Pruven · galones" value={fmt(a.team.galones.sold)} sub={teamSub(a.team.galones, 'gal')} extra={c ? signedPct(pctDelta(c.team.galones.cur, c.team.galones.prev), `${a.team.galones.excluded.length ? 'total ' : ''}${prevShort}`) : undefined} />
           <Kpi label="Puntaje promedio" value={`${fmt(a.avgScore, 1)} / 24`} sub={(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((k) => { const n = d.sellers.filter((x) => x.status === k).length; return `${n} ${STATUS_LABEL[k].toLowerCase()}${n === 1 ? '' : 's'}`; }).join(' · ')} />
         </View>
 
@@ -169,7 +173,7 @@ export default function ReportDoc({ s }: { s: Session }) {
           ))}
         </View>
         <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 8 }}>
-          <Text style={{ fontSize: 8, color: C.ink3 }}>Informe generado automáticamente en el navegador a partir de los archivos indicados; no se almacenó ningún dato. Escala de puntaje por línea (máx. 12): Productivo 10 o más · Estable 4 a 9,5 · Crítico menos de 4.</Text>
+          <Text style={{ fontSize: 8, color: C.ink3 }}>Informe generado automáticamente en el navegador a partir de los archivos indicados; no se almacenó ningún dato. {t(RULES_TEXT)} Ventas por zona según RESULTADOS; puntos y metas individuales según la hoja de cada vendedor.</Text>
         </View>
         </View>
         <Footer month={month} />
@@ -258,7 +262,7 @@ export default function ReportDoc({ s }: { s: Session }) {
           const rows = zonas.slice().sort((x, y) => (y[m] ?? 0) - (x[m] ?? 0));
           const max = Math.max(1, ...rows.map((z) => Math.max(z[m] ?? 0, metaOf(z.sheet)?.[m].meta ?? 0, prev ? prevZona(z.zona)?.[m] ?? 0 : 0))) * 1.05;
           return (
-            <Section key={m} title={m === 'sacos' ? 'Pegutil por zona (sacos)' : 'Pruven por zona (galones)'} sub={`Barra: vendido · línea negra: meta individual${prev ? ` · barra gris: ${prevShort}` : ''} · derecha: % de la meta`} wrap={false}>
+            <Section key={m} title={m === 'sacos' ? 'Pegutil por zona (sacos)' : 'Pruven por zona (galones)'} sub={`Barra: vendido según RESULTADOS · línea negra: meta de la hoja del vendedor${prev ? ` · barra gris: ${prevShort}` : ''} · derecha: % de la meta`} wrap={false}>
               {rows.map((z) => {
                 const meta = metaOf(z.sheet)?.[m].meta ?? null;
                 return <HBar key={z.zona} label={z.zona} sub={z.vendedor !== '-' ? z.vendedor : undefined} value={z[m] ?? 0} max={max} color={m === 'sacos' ? C.peg : C.pru} meta={meta}
@@ -313,7 +317,8 @@ export default function ReportDoc({ s }: { s: Session }) {
           </Section>
         )}
 
-        <Section title="Datos a corregir en el archivo" sub="Diferencias encontradas entre hojas del Excel del mes" wrap={false}>
+        <View break />
+        <Section title="Datos a corregir en el archivo" sub="Diferencias encontradas entre las hojas del Excel del mes (vendedores, RESULTADOS y CALCULOS)">
           {d.alerts.length ? d.alerts.slice().sort((x, y) => ({ crit: 0, warn: 1, info: 2 })[x.level] - ({ crit: 0, warn: 1, info: 2 })[y.level]).map((al) => (
             <View key={al.text} style={[st.row, { marginBottom: 3 }]}>
               <Text style={[st.bold, { width: 52, fontSize: 7, color: al.level === 'crit' ? C.critInk : al.level === 'warn' ? C.warnInk : C.ink3, paddingTop: 1 }]}>{al.level === 'crit' ? 'CRÍTICO' : al.level === 'warn' ? 'REVISAR' : 'NOTA'}</Text>
@@ -323,13 +328,17 @@ export default function ReportDoc({ s }: { s: Session }) {
         </Section>
 
         {d.awards.length > 0 && (
-          <Section title="Reconocimientos y variable" sub="Según la hoja RESULTADOS" wrap={false}>
-            {d.awards.map((w, i) => (
-              <View key={i} style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line2, paddingVertical: 3 }]}>
-                <Text style={{ flex: 1 }}>{t(titleCase(w.criterio))}</Text>
-                <Text style={{ width: 60, color: w.line === 'Pegutil' ? C.peg : C.pru }}>{w.line}</Text>
-                <Text style={{ width: 90 }}>{t(titleCase(w.ejecutivo))}</Text>
-                <Text style={{ width: 50, textAlign: 'right' }}>{w.pct != null ? `${fmt(w.pct, 2)}%` : '-'}</Text>
+          <Section title="Reconocimientos y variable" sub="Asignados en RESULTADOS y verificados contra las hojas de vendedor">
+            {s.awards.map(({ award: w, status, detail }, i) => (
+              <View key={i} style={{ borderBottomWidth: 0.5, borderBottomColor: C.line2, paddingVertical: 3 }} wrap={false}>
+                <View style={st.row}>
+                  <Text style={{ flex: 1 }}>{t(titleCase(w.criterio))}</Text>
+                  <Text style={{ width: 55, color: w.line === 'Pegutil' ? C.peg : C.pru }}>{w.line}</Text>
+                  <Text style={{ width: 80 }}>{t(titleCase(w.ejecutivo))}</Text>
+                  <Text style={{ width: 45, textAlign: 'right' }}>{w.pct != null ? `${fmt(w.pct, 2)}%` : '-'}</Text>
+                  <View style={{ width: 80, alignItems: 'flex-end' }}><Text style={{ backgroundColor: AWARD_C[status][0], color: AWARD_C[status][1], fontSize: 7, paddingVertical: 1.5, paddingHorizontal: 5, borderRadius: 6, fontFamily: 'Helvetica-Bold' }}>{AWARD_STATUS_LABEL[status].toUpperCase()}</Text></View>
+                </View>
+                {status !== 'ok' && <Text style={{ fontSize: 7.5, color: C.ink2, marginTop: 1 }}>{t(detail)}</Text>}
               </View>
             ))}
           </Section>
@@ -340,4 +349,10 @@ export default function ReportDoc({ s }: { s: Session }) {
       </Page>
     </Document>
   );
+}
+
+function teamSub(m: TeamMetric, unit: string): string {
+  const base = `${fmt(m.pct, 1)}% de la meta (${fmt(m.meta)})`;
+  if (!m.excluded.length) return base;
+  return `${base}. Sin contar ${m.excluded.map((z) => `${z.vendedor && z.vendedor !== '-' ? z.vendedor : z.zona} (${fmt(z.value)} ${unit})`).join(', ')}, sin meta individual; total ${fmt(m.total)}`;
 }

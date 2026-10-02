@@ -22,11 +22,24 @@ El lector sigue la estructura del libro `INDICADORES.xlsx`:
 - **Una hoja por vendedor o zona** con dos bloques de indicadores (Pegutil y Pruven). Cada bloque tiene una fila de encabezado con `INDICADOR`, `OBJETIVO`, `REAL`, `%`, `CUMPLE` y `VALORACION`, y un título como `INDICADORES MENSUALES ... (ESTABLE)`. Debajo del último bloque van las filas `META`, `VENTAS` y `% ALCANZADO` de galones.
 - **`RESULTADOS`**: título `RESULTADOS <MES> <AÑO>`, tabla `ZONA / Vendedor / Sacos Vendidos / Galones Vendidos` con filas `TOTAL`, `META` y `% ALCANZADO`, y los bloques `VARIABLE PEGUTL` y `VARIABLE PRUVEN`.
 - **`METAS`**: título `METAS MES <MES>` y tabla `VENDEDOR / SACOS / CAUCHO / ...`.
-- La hoja `CALCULOS` se ignora.
+- **`CALCULOS`** (opcional): sus bloques (`VENDEDOR / Meta … / Ventas`, `TOTAL GALONES`, `CLIENTES NUEVOS …`, `ATENCION DE CARTERA …`) se comparan con las hojas de vendedor y con RESULTADOS; cada diferencia aparece en *Revisión del archivo*.
 
 Las celdas se buscan por su texto, no por posición fija, así que mover tablas de lugar no rompe la lectura. Si cambia el nombre de una columna o de una hoja, el ajuste se hace en `src/lib/parser.ts`.
 
-Reglas de puntaje (en `src/lib/analysis.ts` y `src/lib/format.ts`): cada línea suma hasta 12 puntos; Productivo ≥ 10, Estable 4 a 9,5, Crítico < 4. Un indicador se cumple con el 100% del objetivo, salvo cobranza, que se cumple con el 90%.
+## Reglas y fuentes de cada cifra
+
+Las reglas de puntaje están en un solo archivo, `src/lib/rules.ts`, y las usan el lector, el análisis, el simulador y el PDF:
+
+- Un indicador se cumple con el 100% del objetivo; cobranza, con el 90%.
+- Cada línea suma hasta 12 puntos: Productivo desde 10, Estable desde 4, Crítico por debajo de 4. La leyenda del Excel ("mayor a 10", "de 4 a 9", "menor a 3") deja huecos en 3 y entre 9 y 10; la herramienta lo indica en la revisión del archivo.
+- Los puntos oficiales son los del Excel. Si el CUMPLE del Excel contradice la regla, se marca como **Revisar** (o **Crítico** si cambia el estado del vendedor) y el simulador permite recalcular todo con la regla.
+
+Fuente de cada cifra:
+
+- **Puntos, metas individuales y tarjetas de vendedor:** la hoja de cada vendedor. Si RESULTADOS dice otra cosa, la tarjeta lo muestra.
+- **Ventas por zona y totales del equipo:** RESULTADOS.
+- **Cumplimiento del equipo:** ventas y meta de la misma base. Si la meta del equipo es la suma de las metas individuales, las zonas sin hoja (sin meta propia) se excluyen de las ventas y se informan aparte.
+- **Reconocimientos:** se verifican contra las hojas de vendedor (empates, ganador distinto). "Mayor incremento" solo se verifica si se carga el mes anterior.
 
 ## Desarrollo
 

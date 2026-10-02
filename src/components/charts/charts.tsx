@@ -38,7 +38,7 @@ export function PointLossChart({ data }: { data: PointLoss[] }) {
   );
 }
 
-export interface BarRow { name: string; sub?: string; value: number; meta: number | null; prev?: number | null }
+export interface BarRow { name: string; sub?: string; value: number; meta: number | null; prev?: number | null; sheetValue?: number | null }
 
 /** Barras horizontales: vendido, meta (contorno) y opcionalmente el mes anterior. */
 export function TargetBars({ rows, color, unit, prevLabel }: { rows: BarRow[]; color: 'peg' | 'pru'; unit: string; prevLabel?: string }) {
@@ -62,7 +62,8 @@ export function TargetBars({ rows, color, unit, prevLabel }: { rows: BarRow[]; c
           formatter: (ps: Tip) => {
             const x = r[ps[0].dataIndex];
             const pct = x.meta ? ` (${fmt((x.value / x.meta) * 100, 1)}% de la meta)` : '';
-            return `<b>${x.name}</b>${x.sub ? ` · ${x.sub}` : ''}<br/>Vendido: ${fmt(x.value, 1)} ${unit}${pct}<br/>Meta: ${x.meta ? fmt(x.meta) : 'sin meta individual'}${x.prev != null ? `<br/>${prevLabel}: ${fmt(x.prev, 1)}` : ''}`;
+            const other = x.sheetValue != null && Math.abs(x.sheetValue - x.value) > 0.005 ? `<br/>⚠ La hoja del vendedor dice ${fmt(x.sheetValue, 2)}` : '';
+            return `<b>${x.name}</b>${x.sub ? ` · ${x.sub}` : ''}<br/>Vendido (RESULTADOS): ${fmt(x.value, 1)} ${unit}${pct}<br/>Meta (hoja del vendedor): ${x.meta ? fmt(x.meta) : 'sin meta individual'}${x.prev != null ? `<br/>${prevLabel}: ${fmt(x.prev, 1)}` : ''}${other}`;
           },
         },
         series: [

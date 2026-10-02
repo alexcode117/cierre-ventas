@@ -41,7 +41,8 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
         <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
           {d.sellers.map((s, i) => {
             const z = zonaOf(s);
-            const sacos = z?.sacos ?? s.sacos.real, gal = z?.galones ?? s.galones.real;
+            // Las tarjetas usan la hoja del vendedor (la misma fuente de sus puntos y del mapa); si RESULTADOS dice otra cosa, se indica.
+            const sacos = s.sacos.real ?? z?.sacos ?? null, gal = s.galones.real ?? z?.galones ?? null;
             const sp = s.sacos.meta && sacos != null ? (sacos / s.sacos.meta) * 100 : null;
             const gp = s.galones.meta && gal != null ? (gal / s.galones.meta) * 100 : null;
             const cd = c?.sellers.get(s.sheet);
@@ -79,8 +80,8 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                   })}
                 </div>
                 <div className="grid grid-cols-2 gap-2.5 border-t border-line-2 pt-3">
-                  {line !== 'Pruven' && <MiniStat label="Sacos" value={sacos} pct={sp} meta={s.sacos.meta} prev={cd?.sacos.prev} />}
-                  {line !== 'Pegutil' && <MiniStat label="Galones" value={gal} pct={gp} meta={s.galones.meta} prev={cd?.galones.prev} />}
+                  {line !== 'Pruven' && <MiniStat label="Sacos" value={sacos} pct={sp} meta={s.sacos.meta} prev={cd?.sacos.prev} other={z?.sacos} />}
+                  {line !== 'Pegutil' && <MiniStat label="Galones" value={gal} pct={gp} meta={s.galones.meta} prev={cd?.galones.prev} other={z?.galones} />}
                 </div>
                 <Button className="justify-self-start" onClick={(e) => { e.stopPropagation(); open(i); }}>Ver detalle</Button>
               </motion.article>
@@ -193,12 +194,18 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
   );
 }
 
-function MiniStat({ label, value, pct, meta, prev }: { label: string; value: number | null; pct: number | null; meta: number | null; prev?: number | null }) {
+function MiniStat({ label, value, pct, meta, prev, other }: { label: string; value: number | null; pct: number | null; meta: number | null; prev?: number | null; other?: number | null }) {
+  const differs = other != null && value != null && Math.abs(other - value) > 0.005;
   return (
     <div className="grid gap-px">
       <span className="eyebrow text-[10.5px]">{label}</span>
       <b className="display text-lg" style={{ fontStretch: '85%' }}>{fmt(value)}</b>
       <span className={clsx('text-[12.5px]', (pct ?? 0) >= 100 ? 'text-good-ink' : 'text-crit-ink')}>{fmt(pct)}% de {fmt(meta)}</span>
+      {differs && (
+        <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-warn-ink" title="La hoja del vendedor y RESULTADOS no coinciden. Revise la pestaña Vendedores › Revisión del archivo.">
+          <AlertTriangle size={12} aria-hidden />RESULTADOS: {fmt(other, 2)}
+        </span>
+      )}
       {prev != null && <Delta cur={value} prev={prev} pct label="vs ant." />}
     </div>
   );

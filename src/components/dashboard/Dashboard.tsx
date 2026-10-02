@@ -6,6 +6,7 @@ import { ArrowLeft, FileDown, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
+import { RULES_TEXT } from '@/lib/rules';
 import { Button } from '../ui';
 import ResumenTab from './ResumenTab';
 import SimuladorTab from './SimuladorTab';
@@ -91,7 +92,7 @@ export default function Dashboard({ session, onReset }: { session: Session; onRe
       </AnimatePresence>
 
       <p className="text-[12.5px] text-ink-3">
-        Puntaje por línea (máx. 12): Productivo ≥ 10 · Estable 4 a 9,5 · Crítico &lt; 4. Cumplimiento: verde ≥ 100%, ámbar 80 a 99%, rojo &lt; 80%.
+        {RULES_TEXT} Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.
       </p>
     </motion.div>
   );

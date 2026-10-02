@@ -62,8 +62,9 @@ export function compare(cur: MonthReport, prev: MonthReport): Comparison {
       prevStatus: p.status,
       status: s.status,
       lines: s.blocks.map((b) => ({ line: b.line, cur: b.score, prev: p.blocks.find((x) => x.line === b.line)?.score ?? 0 })),
-      sacos: { prev: zp?.sacos ?? p.sacos.real, cur: zc?.sacos ?? s.sacos.real },
-      galones: { prev: zp?.galones ?? p.galones.real, cur: zc?.galones ?? s.galones.real },
+      // Misma fuente que las tarjetas de vendedor: la hoja del vendedor; RESULTADOS solo si la hoja no trae el dato.
+      sacos: { prev: p.sacos.real ?? zp?.sacos ?? null, cur: s.sacos.real ?? zc?.sacos ?? null },
+      galones: { prev: p.galones.real ?? zp?.galones ?? null, cur: s.galones.real ?? zc?.galones ?? null },
     });
   }
 

@@ -1,22 +1,29 @@
-import { fmt, itemKey, signed, statusOf } from './format';
-import type { Block, Insight, Item, Line, MonthReport, Status } from './types';
+import { fmt, itemKey, signed } from './format';
+import { findSeller, findZona, matchProduct } from './match';
+import { itemMax, statusOf, thresholdOf } from './rules';
+import type { Insight, Line, MonthReport, Status } from './types';
 
-/** Puntos que vale un indicador cuando se cumple. */
-export function itemMax(block: Block, item: Item): number {
-  if (item.pts > 0) return item.pts;
-  return block.line === 'Pruven' && /^VENTAS/i.test(item.name) ? 0.5 : 3;
-}
-
-/** Regla de cumplimiento: 100% del objetivo; cobranza con 90%. */
-export function meetsTarget(item: Item, pct: number): boolean {
-  return /COBRANZA/i.test(item.name) ? pct >= 90 : pct >= 100;
-}
+export { itemMax, meetsTarget } from './rules';
 
 export interface PointLoss { line: Line; name: string; lost: number; max: number; fails: number; n: number; avgPct: number }
 export interface NearMiss { seller: string; line: Line; name: string; pct: number; needText: string; gain: number; from: Status; to: Status; score: number; newScore: number }
 export interface PlanRow { vendedor: string; nombre: string; realS: number | null; metaS: number | null; gS: number | null; realP: number | null; metaP: number | null; gP: number | null; risk: 'alto' | 'medio' | 'bajo' | null }
 export interface Share { zona: string; vendedor: string; v: number; p: number }
 export interface CrossSell { zona: string; vendedor: string; r: number }
+
+/** Cumplimiento del equipo en una unidad, con ventas y meta de la misma base. */
+export interface TeamMetric {
+  /** Ventas que se comparan contra la meta. */
+  sold: number | null;
+  meta: number | null;
+  pct: number | null;
+  /** Total vendido según RESULTADOS (incluye zonas sin meta individual). */
+  total: number | null;
+  /** Zonas que se dejaron fuera porque la meta del equipo no las incluye. */
+  excluded: { zona: string; vendedor: string; value: number }[];
+  /** Suma de las metas individuales de las hojas de vendedor. */
+  sumMetas: number | null;
+}
 
 export interface Analysis {
   insights: Insight[];
@@ -29,6 +36,7 @@ export interface Analysis {
   teamCross: number | null;
   sacosPct: number | null;
   galonesPct: number | null;
+  team: { sacos: TeamMetric; galones: TeamMetric };
   avgScore: number | null;
 }
 
@@ -65,7 +73,7 @@ export function analyze(d: MonthReport): Analysis {
     for (const b of s.blocks)
       for (const it of b.items) {
         if (it.ok || it.pct == null || it.pct < 70 || !it.obj) continue;
-        const need = /COBRANZA/i.test(it.name) ? it.obj * 0.9 - (it.real ?? 0) : it.obj - (it.real ?? 0);
+        const need = (it.obj * thresholdOf(it)) / 100 - (it.real ?? 0);
         if (need <= 0) continue;
         const ratio = it.obj <= 1;
         const gain = itemMax(b, it);
@@ -91,17 +99,18 @@ export function analyze(d: MonthReport): Analysis {
 
   const plan = buildPlan(d);
 
-  const sacosPct = R.meta.sacos && R.total.sacos != null ? (R.total.sacos / R.meta.sacos) * 100 : null;
-  const galonesPct = R.meta.galones && R.total.galones != null ? (R.total.galones / R.meta.galones) * 100 : null;
+  const team = { sacos: teamMetric(d, 'sacos'), galones: teamMetric(d, 'galones') };
+  const sacosPct = team.sacos.pct;
+  const galonesPct = team.galones.pct;
   const avgScore = d.sellers.length ? d.sellers.reduce((a, s) => a + s.total, 0) / d.sellers.length : null;
 
   // ----- hallazgos -----
   if (sacosPct != null && galonesPct != null) {
     if (sacosPct >= 100 && galonesPct < 100)
       add('warn', 'Pegutil supera la meta y Pruven queda corto',
-        `El equipo vendió ${fmt(sacosPct)}% de la meta de sacos pero solo ${fmt(galonesPct)}% de la de galones. Faltaron ${fmt((R.meta.galones ?? 0) - (R.total.galones ?? 0))} galones; el crecimiento depende de vender Pruven a los mismos clientes de Pegutil.`, ['Pegutil', 'Pruven']);
+        `El equipo vendió ${fmt(sacosPct)}% de la meta de sacos pero solo ${fmt(galonesPct)}% de la de galones. Faltaron ${fmt((team.galones.meta ?? 0) - (team.galones.sold ?? 0))} galones${excludedNote(team.galones, 'galones')}; el crecimiento depende de vender Pruven a los mismos clientes de Pegutil.`, ['Pegutil', 'Pruven']);
     else if (sacosPct < 100 && galonesPct >= 100)
-      add('warn', 'Pruven supera la meta y Pegutil queda corto', `Galones al ${fmt(galonesPct)}% y sacos al ${fmt(sacosPct)}% de la meta. Faltaron ${fmt((R.meta.sacos ?? 0) - (R.total.sacos ?? 0))} sacos.`, ['Pegutil', 'Pruven']);
+      add('warn', 'Pruven supera la meta y Pegutil queda corto', `Galones al ${fmt(galonesPct)}% y sacos al ${fmt(sacosPct)}% de la meta. Faltaron ${fmt((team.sacos.meta ?? 0) - (team.sacos.sold ?? 0))} sacos${excludedNote(team.sacos, 'sacos')}.`, ['Pegutil', 'Pruven']);
     else add(sacosPct >= 100 ? 'good' : 'crit', `Sacos ${fmt(sacosPct)}% · galones ${fmt(galonesPct)}% de la meta`, 'Cumplimiento del equipo en ambas líneas frente a la meta del mes.', ['Equipo']);
   }
   if (share.length >= 3) {
@@ -149,22 +158,19 @@ export function analyze(d: MonthReport): Analysis {
   const ord = { crit: 0, warn: 1, good: 2, info: 3 } as const;
   insights.sort((a, b) => ord[a.sev] - ord[b.sev]);
 
-  return { insights, pointLoss, totalLost, nearMiss: nearMiss.map((n) => { const { cost, ...rest } = n; void cost; return rest; }), plan, share, crossSell, teamCross, sacosPct, galonesPct, avgScore };
+  return { insights, pointLoss, totalLost, nearMiss: nearMiss.map((n) => { const { cost, ...rest } = n; void cost; return rest; }), plan, share, crossSell, teamCross, sacosPct, galonesPct, team, avgScore };
 }
 
 function buildPlan(d: MonthReport): PlanRow[] {
   if (!d.metas) return [];
-  const zonas = d.results?.zonas ?? [];
-  const tok = (s: string) => s.toUpperCase().split(' ')[0];
   const iS = d.metas.cols.findIndex((c) => /SACOS/i.test(c));
   const prodCols = d.metas.cols.map((_, i) => i).filter((i) => i !== iS && !/CLIENTES/i.test(d.metas!.cols[i]) && d.metas!.cols[i]);
 
   return d.metas.rows
     .filter((r) => !/GENERAL|TOTAL/i.test(r.vendedor))
     .map((r) => {
-      const t = tok(r.vendedor);
-      const s = d.sellers.find((s) => s.sheet.toUpperCase().includes(t) || (s.zona ?? '').toUpperCase().includes(t));
-      const z = zonas.find((z) => z.vendedor.toUpperCase().includes(t) || z.zona.toUpperCase().includes(t));
+      const s = findSeller(d, r.vendedor);
+      const z = findZona(d, r.vendedor);
       const realS = z?.sacos ?? s?.sacos.real ?? null;
       const metaS = iS >= 0 ? r.values[iS] : null;
       let realP: number | null = null, metaP: number | null = null;
@@ -172,8 +178,8 @@ function buildPlan(d: MonthReport): PlanRow[] {
       if (pb) {
         let rp = 0, mp = 0;
         for (const i of prodCols) {
-          const key = tok(d.metas!.cols[i]);
-          const it = pb.items.find((x) => /^VENTAS/i.test(x.name) && x.name.toUpperCase().includes(key));
+          // Palabras completas: "UTIL TOP" no debe tomar "MANTUTIL".
+          const it = matchProduct(d.metas!.cols[i], pb.items);
           if (it && r.values[i] != null) { rp += it.real ?? 0; mp += r.values[i]!; }
         }
         if (mp) { realP = rp; metaP = mp; }
@@ -184,4 +190,32 @@ function buildPlan(d: MonthReport): PlanRow[] {
       const nombre = s?.display ?? (z ? (z.vendedor && z.vendedor !== '-' ? z.vendedor : z.zona) : r.vendedor);
       return { vendedor: r.vendedor, nombre, realS, metaS, gS, realP, metaP, gP, risk: worst === -Infinity ? null : worst > 40 ? 'alto' : worst > 15 ? 'medio' : 'bajo' };
     });
+}
+
+const near = (a: number, b: number) => Math.abs(a - b) <= Math.max(a, b) * 0.05;
+
+/**
+ * Cumplimiento del equipo comparando ventas y meta de la misma base. Si la meta del equipo es (casi)
+ * la suma de las metas individuales, las zonas sin meta propia (sin hoja de vendedor) quedan fuera
+ * de las ventas; si la meta del equipo es mayor, se asume que ya las incluye y se usa el total.
+ */
+function teamMetric(d: MonthReport, key: 'sacos' | 'galones'): TeamMetric {
+  const R = d.results;
+  const total = R?.total[key] ?? null;
+  const meta = R?.meta[key] ?? null;
+  const zonas = R?.zonas ?? [];
+  const metaOf = (sheet: string | null) => d.sellers.find((s) => s.sheet === sheet)?.[key].meta ?? null;
+  const withMeta = zonas.filter((z) => metaOf(z.sheet) != null);
+  const sumMetas = withMeta.length ? withMeta.reduce((a, z) => a + (metaOf(z.sheet) ?? 0), 0) : null;
+  const without = zonas.filter((z) => metaOf(z.sheet) == null && (z[key] ?? 0) > 0);
+  if (meta && sumMetas != null && without.length && near(meta, sumMetas)) {
+    const sold = withMeta.reduce((a, z) => a + (z[key] ?? 0), 0);
+    return { sold, meta, pct: (sold / meta) * 100, total, sumMetas, excluded: without.map((z) => ({ zona: z.zona, vendedor: z.vendedor, value: z[key] ?? 0 })) };
+  }
+  return { sold: total, meta, pct: meta && total != null ? (total / meta) * 100 : null, total, sumMetas, excluded: [] };
+}
+
+function excludedNote(m: TeamMetric, unit: string): string {
+  if (!m.excluded.length) return '';
+  return ` (sin contar ${m.excluded.map((z) => `${z.vendedor && z.vendedor !== '-' ? z.vendedor : z.zona}, ${fmt(z.value)} ${unit}`).join('; ')}, que no ${m.excluded.length > 1 ? 'tienen' : 'tiene'} meta individual)`;
 }

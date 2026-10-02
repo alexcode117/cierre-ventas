@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
-import { fmt, monthKey, statusOf } from './format';
+import { checkCalculos, parseCalculos } from './calculos';
+import { fmt, monthKey, STATUS_LABEL } from './format';
+import { RULES, rulePoints, statusOf, thresholdOf } from './rules';
 import type { Award, Block, DataAlert, Item, Line, Metas, MonthReport, Results, Seller, Status, Zona } from './types';
 
 type Cell = string | number | boolean | Date | null;
@@ -38,11 +40,16 @@ export function parseFile(buf: ArrayBuffer): MonthReport {
 
 export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
   const out: MonthReport = { month: null, key: null, sellers: [], results: null, awards: [], metas: null, alerts: [] };
+  let calcRows: Rows | null = null;
+  let legend: string[] | null = null;
 
   for (const name of wb.SheetNames) {
     const rows = XLSX.utils.sheet_to_json<Cell[]>(wb.Sheets[name], { header: 1, defval: null, raw: true });
     const n = up(name);
-    if (/CALCULO/.test(n)) continue;
+    if (/CALCULO/.test(n)) {
+      calcRows = rows;
+      continue;
+    }
     if (/RESULTADO/.test(n)) {
       parseResults(rows, out);
       continue;
@@ -52,7 +59,10 @@ export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
       continue;
     }
     const s = parseSeller(name, rows);
-    if (s) out.sellers.push(s);
+    if (s) {
+      out.sellers.push(s);
+      legend ??= readLegend(rows);
+    }
   }
 
   if (!out.sellers.length && !out.results) {
@@ -60,6 +70,9 @@ export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
   }
   out.key = monthKey(out.month);
   checkConsistency(out);
+  if (calcRows) out.alerts.push(...checkCalculos(out, parseCalculos(calcRows)));
+  if (legend)
+    out.alerts.push({ level: 'info', text: `La leyenda del Excel dice ${legend.join(', ')}, y deja sin clasificar el 3 y los puntajes entre 9 y 10. La herramienta usa: Productivo desde ${RULES.productivo}, Estable desde ${RULES.estable}, Crítico por debajo de ${RULES.estable}.` });
   out.sellers.sort((a, b) => b.total - a.total);
   return out;
 }
@@ -130,6 +143,18 @@ function parseSeller(sheet: string, rows: Rows): Seller | null {
     total,
     status: statusOf(total / blocks.length),
   };
+}
+
+/** Leyenda de estados que algunas hojas traen a la derecha ("PRODUCTIVO | MAYOR A DE 10 PUNTOS"). */
+function readLegend(rows: Rows): string[] | null {
+  const items: string[] = [];
+  for (const st of ['PRODUCTIVO', 'ESTABLE', 'CRITICO']) {
+    const at = findCell(rows, (v) => v === st);
+    const txt = at ? clean(rows[at[0]][at[1] + 1]).replace(/\s*PUNTOS?/i, '').toLowerCase() : '';
+    if (!txt) return null;
+    items.push(`${STATUS_LABEL[st as Status]} "${txt.replace(/ de (\d)/, ' $1')}"`);
+  }
+  return items;
 }
 
 function parseResults(rows: Rows, out: MonthReport) {
@@ -211,10 +236,14 @@ function checkConsistency(out: MonthReport) {
         add('warn', `${s.display} · ${b.line}: el total (${fmt(b.stated, 1)}) no coincide con la suma de valoraciones (${fmt(b.sum, 1)}).`);
       if (b.declared && b.declared !== b.status)
         add('info', `${s.display} · ${b.line}: el título dice ${b.declared} pero ${fmt(b.score, 1)} puntos corresponde a ${b.status}.`);
-      for (const i of b.items) {
-        if (/COBRANZA/i.test(i.name) || i.pct == null) continue;
-        if (i.ok && i.pct < 100) add('info', `${s.display} · ${i.name}: marcado "SI" con ${fmt(i.pct, 1)}% de cumplimiento.`);
-        if (!i.ok && i.pct >= 100) add('info', `${s.display} · ${i.name}: marcado "NO" con ${fmt(i.pct, 1)}% de cumplimiento.`);
+      // CUMPLE del Excel que contradice la regla: cambia puntos, así que nunca es solo una nota.
+      const wrong = b.items.filter((i) => i.pct != null && rulePoints(b, i) !== i.pts);
+      if (wrong.length) {
+        const ruleScore = b.items.reduce((a, i) => a + rulePoints(b, i), 0);
+        const ruleStatus = statusOf(ruleScore);
+        const list = wrong.map((i) => `${i.name} al ${fmt(i.pct, 1)}% recibe ${fmt(i.pts, 1)} pts (umbral ${thresholdOf(i)}%)`).join('; ');
+        add(ruleStatus !== b.status ? 'crit' : 'warn',
+          `${s.display} · ${b.line}: el Excel asigna puntos que no corresponden a la regla (${list}). Con la regla, ${b.line} pasa de ${fmt(b.score, 1)} a ${fmt(ruleScore, 1)} pts${ruleStatus !== b.status ? ` y de ${STATUS_LABEL[b.status]} a ${STATUS_LABEL[ruleStatus]}` : ''}.`);
       }
     }
   }
@@ -223,6 +252,19 @@ function checkConsistency(out: MonthReport) {
     const sum = out.results.zonas.reduce((a, z) => a + (z.sacos ?? 0), 0);
     if (out.results.total.sacos != null && Math.abs(sum - out.results.total.sacos) > 0.5)
       add('warn', `RESULTADOS: el total de sacos (${fmt(out.results.total.sacos)}) no coincide con la suma por zona (${fmt(sum)}).`);
+  }
+  // Meta del equipo frente a la suma de metas individuales
+  for (const key of ['sacos', 'galones'] as const) {
+    const meta = out.results?.meta[key];
+    const linked = out.sellers.filter((s) => s.zona && s[key].meta != null);
+    if (!meta || !linked.length) continue;
+    const sum = linked.reduce((a, s) => a + (s[key].meta ?? 0), 0);
+    const sinHoja = zonas.filter((z) => !z.sheet).map((z) => (z.vendedor && z.vendedor !== '-' ? z.vendedor : z.zona));
+    if (Math.abs(meta - sum) <= 0.5) continue;
+    if (Math.abs(meta - sum) <= Math.max(meta, sum) * 0.05)
+      add('warn', `La meta de ${key} del equipo en RESULTADOS (${fmt(meta)}) no coincide con la suma de las metas de las hojas de vendedor (${fmt(sum)}).`);
+    else if (meta > sum)
+      add('info', `La meta de ${key} del equipo (${fmt(meta)}) es mayor que la suma de las metas de las hojas (${fmt(sum)}): se asume que incluye ${sinHoja.length ? `a ${sinHoja.join(', ')}` : 'a vendedores sin hoja'}.`);
   }
   if (!out.results) add('warn', 'No se encontró la hoja RESULTADOS: los totales del equipo se calculan solo con las hojas de vendedor.');
   if (!out.metas) add('info', 'No se encontró la hoja METAS: no se evalúan las metas del próximo mes.');
