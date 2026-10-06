@@ -40,7 +40,7 @@ Hay dos bases de cálculo de puntos y estados, que se eligen con el selector **P
   - Las ventas por producto de Pruven se muestran como información, sin puntos.
 - **Excel**: los puntos del libro (cumple con el 100%, cobranza con el 90%; Productivo desde 10). Si el CUMPLE del Excel contradice esa regla, se marca como **Revisar** (o **Crítico** si cambia el estado).
 
-La pestaña **Procedimiento** compara las dos bases indicador por indicador y valida la tabla de incentivos de RESULTADOS contra la oficial: porcentajes, ganadores (incluido el empate), y el premio "Mejor manejo de variables", que el Excel no asigna.
+La pestaña **Procedimiento** compara las dos bases indicador por indicador y valida la tabla de incentivos de RESULTADOS contra la oficial: porcentajes, ganadores (incluido el empate) y premios oficiales que el Excel no asigna. El premio "Mejor manejo de variables" del documento no se usa.
 
 Fuente de cada cifra:
 

@@ -50,20 +50,18 @@ export const RULES = {
 } as const;
 
 /** Porcentajes de incentivo sobre la base de cálculo, según el procedimiento. */
-export const INCENTIVES: Record<Line, { key: 'CV' | 'CT' | 'AC' | 'ANC' | 'MV'; label: string; pct: number; base: string }[]> = {
+export const INCENTIVES: Record<Line, { key: 'CV' | 'CT' | 'AC' | 'ANC'; label: string; pct: number; base: string }[]> = {
   Pegutil: [
     { key: 'CV', label: 'Mayor incremento de ventas', pct: 0.65, base: 'Ventas totales en el mes' },
     { key: 'CT', label: 'Cobranza a tiempo', pct: 0.45, base: 'Cobranza realizada en el mes' },
     { key: 'AC', label: 'Atención de cartera', pct: 0.13, base: 'Ventas totales en el mes' },
     { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales en el mes' },
-    { key: 'MV', label: 'Mejor manejo de variables', pct: 0.05, base: 'Ventas totales en el mes' },
   ],
   Pruven: [
     { key: 'CV', label: 'Mayor incremento de ventas', pct: 0.65, base: 'Ventas totales en el mes' },
     { key: 'CT', label: 'Cobranza a tiempo', pct: 0.45, base: 'Cobranza realizada en el mes' },
     { key: 'AC', label: 'Atención de cartera', pct: 0.12, base: 'Ventas totales en el mes' },
     { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales en el mes' },
-    { key: 'MV', label: 'Mejor manejo de variables', pct: 0.05, base: 'Ventas totales en el mes' },
   ],
 };
 

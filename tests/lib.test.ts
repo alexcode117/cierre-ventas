@@ -173,7 +173,7 @@ describe("procedimiento de KPI's", () => {
   it('valida los incentivos contra la tabla oficial', () => {
     const checks = checkAwards(proc);
     expect(checks.find((c) => c.key === 'CV' && c.award.line === 'Pegutil' && pctDiffers(c))?.officialPct).toBe(0.65);
-    expect(checks.filter((c) => c.status === 'missing').map((c) => `${c.award.line} ${c.key}`)).toEqual(['Pegutil MV', 'Pruven MV']);
+    expect(checks.filter((c) => c.status === 'missing')).toEqual([]); // "Mejor manejo de variables" no se usa
   });
 
   it('arma la sesión en la base pedida', () => {

@@ -31,7 +31,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
         <span className="eyebrow">Norma de referencia</span>
         <h2 className="display text-2xl font-bold" style={{ fontStretch: '85%' }}>Procedimiento para cálculo de KPI&apos;s e incentivos para ventas</h2>
         <p className="max-w-[75ch] text-[14px] text-ink-2">
-          Elaborado el 08/01/2025 para Pegamentos Útiles de Venezuela (Pegutil) y Productos Útiles de Venezuela (Pruven). Mide cuatro indicadores por empresa con tramos de 3, 1 y 0 puntos; su suma define el estado del vendedor y el ganador de &quot;mejor manejo de variables&quot;.
+          Elaborado el 08/01/2025 para Pegamentos Útiles de Venezuela (Pegutil) y Productos Útiles de Venezuela (Pruven). Mide cuatro indicadores por empresa con tramos de 3, 1 y 0 puntos; su suma define el estado del vendedor.
         </p>
         <div className="flex flex-wrap items-center gap-3 text-[13px]">
           <span className="text-ink-2">El dashboard está usando: <b className="text-ink">{session.basis === 'procedimiento' ? 'el procedimiento' : 'los puntos del Excel'}</b>.</span>

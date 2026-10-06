@@ -4,7 +4,7 @@ import { INCENTIVES, RULES } from './rules';
 import type { Award, Insight, KpiKey, Line, MonthReport, Seller } from './types';
 
 export type AwardStatus = 'ok' | 'tie' | 'mismatch' | 'unverifiable' | 'missing';
-type AwardKey = Exclude<KpiKey, 'PROD'> | 'MV';
+type AwardKey = Exclude<KpiKey, 'PROD'>;
 
 export interface AwardCheck {
   award: Award;
@@ -25,7 +25,6 @@ export const AWARD_STATUS_LABEL: Record<AwardStatus, string> = {
 
 function keyOf(criterio: string): AwardKey | null {
   const c = criterio.toUpperCase();
-  if (/VARIABLES/.test(c)) return 'MV';
   if (/INCREMENTO|CRECIMIENTO/.test(c)) return 'CV';
   if (/COBRANZA/.test(c)) return 'CT';
   if (/CARTERA/.test(c)) return 'AC';
@@ -53,17 +52,10 @@ const METRIC: Record<AwardKey, { label: string; show: (v: number) => string }> =
   CT: { label: 'cobranza a tiempo', show: (v) => `${fmt(v)}%` },
   AC: { label: 'atención de cartera', show: (v) => `${fmt(v, 1)}% de la cartera` },
   ANC: { label: 'activación de nuevos clientes', show: (v) => `${fmt(v)}% de la meta` },
-  MV: { label: 'puntaje total entre los productivos', show: (v) => `${fmt(v, 1)} pts` },
 };
 
 function leaders(report: MonthReport, line: Line, key: AwardKey) {
-  const value = (s: Seller): number | null => {
-    if (key === 'MV') {
-      const b = s.blocks.find((x) => x.line === line);
-      return b && b.status === 'PRODUCTIVO' ? b.score : null;
-    }
-    return kpiPct(s, line, key);
-  };
+  const value = (s: Seller): number | null => kpiPct(s, line, key);
   const vals = report.sellers.map((s) => ({ s, v: value(s) })).filter((x): x is { s: Seller; v: number } => x.v != null);
   if (!vals.length) return null;
   const best = Math.max(...vals.map((x) => x.v));
@@ -73,7 +65,6 @@ function leaders(report: MonthReport, line: Line, key: AwardKey) {
 /**
  * Contrasta los reconocimientos de RESULTADOS con el Procedimiento de KPI's: quién debería ganar cada
  * premio según los datos, si el % de incentivo es el oficial y si falta algún premio de la tabla.
- * Los puntajes (para "mejor manejo de variables") salen de la base de cálculo del informe recibido.
  */
 export function checkAwards(report: MonthReport): AwardCheck[] {
   const checks: AwardCheck[] = report.awards.map((award) => {
@@ -83,7 +74,7 @@ export function checkAwards(report: MonthReport): AwardCheck[] {
     if (!key) return { ...base, status: 'unverifiable', detail: 'Criterio no reconocido en el procedimiento.' };
     const m = METRIC[key];
     const l = leaders(report, award.line, key);
-    if (!l) return { ...base, status: 'unverifiable', detail: key === 'MV' ? 'Ningún vendedor está en estado Productivo.' : `No hay datos de ${m.label}.` };
+    if (!l) return { ...base, status: 'unverifiable', detail: `No hay datos de ${m.label}.` };
     const winner = findSeller(report, award.ejecutivo);
     const names = l.top.map((s) => s.display).join(' y ');
     if (!winner) return { ...base, status: 'mismatch', detail: `"${titleCase(award.ejecutivo)}" no coincide con ninguna hoja de vendedor. Según el procedimiento gana ${names} (${m.show(l.best)}).` };
