@@ -1,13 +1,12 @@
 'use client';
 
-import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { fmt, prettyItem, signed, titleCase } from '@/lib/format';
+import { fmt, prettyItem, titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
 import { AWARD_STATUS_LABEL, type AwardStatus } from '@/lib/awards';
 import { RefBars, TargetBars, type BarRow } from '../charts/charts';
-import { Card, Pill, RiskPill, SectionHead, Segmented } from '../ui';
+import { Card, Pill, SectionHead, Segmented } from '../ui';
 
 const AWARD_CLS: Record<AwardStatus, string> = { ok: 'bg-good-bg text-good-ink', tie: 'bg-warn-bg text-warn-ink', mismatch: 'bg-crit-bg text-crit-ink', unverifiable: 'bg-line-2 text-ink-2', missing: 'bg-crit-bg text-crit-ink' };
 
@@ -91,37 +90,6 @@ export default function ZonasTab({ session }: { session: Session }) {
         </section>
       )}
 
-      {a.plan.length > 0 && d.metas && (
-        <section className="grid gap-3">
-          <SectionHead title={`${titleCase(d.metas.title)}: ¿son alcanzables?`} sub="Meta nueva comparada con lo vendido este mes" />
-          <Card className="overflow-x-auto">
-            <table className="w-full border-collapse text-[13.5px]">
-              <thead>
-                <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
-                  {['Vendedor', 'Sacos este mes', 'Meta sacos', 'Crecimiento', 'Pruven este mes', 'Meta Pruven', 'Crecimiento', 'Riesgo'].map((h, i) => (
-                    <th key={i} className={clsx('px-3 py-2.5 font-medium whitespace-nowrap', i ? 'text-right' : 'pl-4.5 text-left')}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {a.plan.map((p) => (
-                  <tr key={p.vendedor} className="border-b border-line-2 last:border-b-0">
-                    <td className="py-2.5 pr-3 pl-4.5">{p.nombre}</td>
-                    <td className="px-3 text-right">{fmt(p.realS)}</td>
-                    <td className="px-3 text-right">{fmt(p.metaS)}</td>
-                    <td className={clsx('px-3 text-right font-semibold', (p.gS ?? 0) > 15 ? 'text-crit-ink' : 'text-good-ink')}>{p.gS == null ? '—' : `${signed(p.gS)}%`}</td>
-                    <td className="px-3 text-right">{fmt(p.realP, 1)}</td>
-                    <td className="px-3 text-right">{fmt(p.metaP)}</td>
-                    <td className={clsx('px-3 text-right font-semibold', (p.gP ?? 0) > 15 ? 'text-crit-ink' : 'text-good-ink')}>{p.gP == null ? '—' : `${signed(p.gP)}%`}</td>
-                    <td className="px-3 text-right">{p.risk ? <RiskPill r={p.risk} /> : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          <p className="text-[12.5px] text-ink-3">Pruven = suma de los productos con meta. Riesgo alto: requiere crecer más de 40% en alguna línea; medio: entre 15% y 40%.</p>
-        </section>
-      )}
 
       {d.awards.length > 0 && (
         <section className="grid gap-3">

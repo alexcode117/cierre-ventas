@@ -12,7 +12,8 @@ Convierte el Excel mensual de indicadores del equipo de ventas en un dashboard i
 |---|---|
 | Resumen | Sacos y galones contra meta, puntaje promedio, venta cruzada, hallazgos priorizados, puntos perdidos por indicador, puntos al alcance y, si hay mes anterior, la evolución del puntaje de cada vendedor |
 | Vendedores | Ranking con puntaje Pegutil/Pruven, mapa de cumplimiento (% de meta, lo que falta, puntos o cambio vs mes anterior), detalle por vendedor y revisión de inconsistencias del archivo |
-| Zonas y productos | Ventas por zona contra meta, venta cruzada, participación, cumplimiento por producto Pruven, metas del próximo mes con nivel de riesgo y reconocimientos |
+| Zonas y productos | Ventas por zona contra meta, venta cruzada, participación, cumplimiento por producto Pruven y reconocimientos |
+| Metas | Metas del próximo mes (hoja METAS): si son alcanzables, nivel de riesgo y detalle por producto frente a lo logrado en el mes |
 | Simulador | Mueve el resultado de cada indicador y recalcula puntaje y estado del vendedor |
 | Procedimiento | Excel frente al Procedimiento de KPI's, fórmulas y rangos, y tabla de incentivos oficial frente a RESULTADOS |
 

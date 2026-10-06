@@ -9,6 +9,7 @@ import type { Session } from '@/lib/load';
 import { rulesText } from '@/lib/rules';
 import type { Basis } from '@/lib/types';
 import { Button, Segmented } from '../ui';
+import MetasTab from './MetasTab';
 import ProcedimientoTab from './ProcedimientoTab';
 import ResumenTab from './ResumenTab';
 import SimuladorTab from './SimuladorTab';
@@ -19,6 +20,7 @@ const TABS = [
   ['resumen', 'Resumen'],
   ['vendedores', 'Vendedores'],
   ['zonas', 'Zonas y productos'],
+  ['metas', 'Metas'],
   ['simulador', 'Simulador'],
   ['procedimiento', 'Procedimiento'],
 ] as const;
@@ -94,6 +96,7 @@ export default function Dashboard({ session, onReset, onBasis }: { session: Sess
           {tab === 'resumen' && <ResumenTab session={session} onGo={go} />}
           {tab === 'vendedores' && <VendedoresTab session={session} onSimulate={(i) => { setSimSeller(i); go('simulador'); }} />}
           {tab === 'zonas' && <ZonasTab session={session} />}
+          {tab === 'metas' && <MetasTab session={session} />}
           {tab === 'simulador' && <SimuladorTab key={session.basis} session={session} seller={simSeller} onSeller={setSimSeller} />}
           {tab === 'procedimiento' && <ProcedimientoTab session={session} onBasis={onBasis} />}
         </motion.section>
