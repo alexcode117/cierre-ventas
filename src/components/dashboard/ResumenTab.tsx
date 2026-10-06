@@ -42,7 +42,7 @@ export default function ResumenTab({ session, onGo }: { session: Session; onGo: 
 
   return (
     <div className="grid gap-7">
-      <motion.section variants={stagger} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen del mes">
+      <motion.section variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Resumen del mes">
         <Kpi label="Pegutil · sacos" m={a.team.sacos} unit="sacos"
           delta={c && <Delta cur={c.team.sacos.cur} prev={c.team.sacos.prev} pct label={`${a.team.sacos.excluded.length ? 'del total ' : ''}vs ${prevLabel.toLowerCase()}`} />} />
         <Kpi label="Pruven · galones" m={a.team.galones} unit="gal"
@@ -55,13 +55,6 @@ export default function ResumenTab({ session, onGo }: { session: Session; onGo: 
               {(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((s) => <StatusPill key={s} s={s}>{count(s)} {STATUS_LABEL[s].toLowerCase()}</StatusPill>)}
             </div>
             {c && <Delta cur={c.team.avgScore.cur} prev={c.team.avgScore.prev} digits={1} suffix=" pts" label={`vs ${prevLabel.toLowerCase()}`} />}
-          </Card>
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <Card className="grid h-full content-start gap-2 px-4.5 py-4">
-            <span className="eyebrow">Venta cruzada</span>
-            <div className="display text-[34px] leading-none font-extrabold"><CountUp value={a.teamCross} digits={1} /><small className="ml-1.5 font-sans text-sm font-medium text-ink-3">gal / 100 sacos</small></div>
-            <p className="text-[13px] text-ink-2">Galones Pruven vendidos por cada 100 sacos Pegutil.</p>
           </Card>
         </motion.div>
       </motion.section>
