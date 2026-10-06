@@ -6,7 +6,8 @@ import { AlertOctagon, AlertTriangle, Check, Info, Minus, X } from 'lucide-react
 import { useRef, useState } from 'react';
 import { itemMax } from '@/lib/analysis';
 import { prevItem } from '@/lib/compare';
-import { band, fmt, prettyItem, STATUS_LABEL } from '@/lib/format';
+import { fmt, itemBand, prettyItem, STATUS_LABEL } from '@/lib/format';
+import { nextStep, STATUS_THRESHOLDS } from '@/lib/rules';
 import type { Session } from '@/lib/load';
 import type { Line, Seller } from '@/lib/types';
 import { Button, Card, Delta, fadeUp, SectionHead, Segmented, stagger, StatusPill } from '../ui';
@@ -72,7 +73,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                         <span className="relative h-2.5 rounded-full bg-track">
                           <motion.i className="absolute inset-y-0 left-0 rounded-full" style={{ background: lineColor(b.line) }} initial={{ width: 0 }} animate={{ width: `${(b.score / 12) * 100}%` }} transition={{ duration: 0.7, delay: 0.1 + i * 0.05, ease: [0.16, 1, 0.3, 1] }} />
                           {prev != null && <span title={`Mes anterior: ${fmt(prev, 1)}`} className="absolute -top-[3px] size-4 -translate-x-1/2 rounded-full border-2 border-panel bg-ink-3/70" style={{ left: `${(prev / 12) * 100}%` }} />}
-                          <span className="absolute -top-[3px] -bottom-[3px] w-[1.5px] bg-ink-3" style={{ left: `${(10 / 12) * 100}%` }} />
+                          <span className="absolute -top-[3px] -bottom-[3px] w-[1.5px] bg-ink-3" style={{ left: `${(STATUS_THRESHOLDS[session.basis].productivo / 12) * 100}%` }} />
                         </span>
                         <span className="min-w-[50px] text-right font-semibold">{fmt(b.score, 1)}<span className="font-normal text-ink-3">/12</span></span>
                       </div>
@@ -125,13 +126,18 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                           const x = b && (b.items.find((y) => y.name === it.name) ?? b.items[k]);
                           const dim = focus && focus !== s.sheet;
                           if (!b || !x) return <td key={s.sheet}><div className="m-[3px] text-center text-ink-3">—</div></td>;
-                          const bd = band(x.pct);
+                          const bd = itemBand(x);
                           const p = prevItem(c, s.sheet, ln, x.name);
                           let txt: React.ReactNode;
                           if (mode === 'pct') txt = <>{BAND_ICON[bd]}{fmt(x.pct)}%</>;
                           else if (mode === 'pts') txt = `${fmt(x.pts, 1)} / ${fmt(itemMax(b, x), 1)}`;
                           else if (mode === 'delta') txt = p?.pct != null && x.pct != null ? `${x.pct >= p.pct ? '▲' : '▼'} ${fmt(Math.abs(x.pct - p.pct))} pp` : '—';
-                          else { const g = (x.obj ?? 0) - (x.real ?? 0); txt = g <= 0 ? <>{BAND_ICON.good}cumplido</> : (x.obj ?? 0) <= 1 ? `faltan ${fmt(g * 100)} pp` : `faltan ${fmt(g, 1)}`; }
+                          else {
+                            // Lo que falta para el siguiente tramo de puntos (o para cumplir, con la base Excel).
+                            const step = nextStep(b, x);
+                            const g = step ? ((x.obj ?? 0) * step.pct) / 100 - (x.real ?? 0) : 0;
+                            txt = !step || g <= 0 ? <>{BAND_ICON.good}{x.kpi === 'PROD' ? 'informativo' : 'cumplido'}</> : (x.obj ?? 0) <= 1 ? `faltan ${fmt(g * 100)} pp` : `faltan ${fmt(g, 1)}`;
+                          }
                           const cls = mode === 'delta' && p?.pct != null && x.pct != null ? (x.pct >= p.pct ? BAND_CLS.good : BAND_CLS.crit) : BAND_CLS[bd];
                           return (
                             <td key={s.sheet} className={clsx('transition-opacity', dim && 'opacity-30')}>
@@ -159,9 +165,10 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
             </table>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line px-4 py-3 text-[12.5px] text-ink-2">
-            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-good-bg ring-1 ring-good" />100% o más</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-warn-bg ring-1 ring-warn" />80 a 99%</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-crit-bg ring-1 ring-crit" />menos de 80%</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-good-bg ring-1 ring-good" />{session.basis === 'procedimiento' ? '3 pts' : '100% o más'}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-warn-bg ring-1 ring-warn" />{session.basis === 'procedimiento' ? '1 pt' : '80 a 99%'}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-crit-bg ring-1 ring-crit" />{session.basis === 'procedimiento' ? '0 pts' : 'menos de 80%'}</span>
+            {session.basis === 'procedimiento' && <span>Atención de cartera: % de la cartera total (objetivo del Excel ÷ 0,7). Ventas por producto: informativas, sin puntos.</span>}
             {mode === 'delta' && <span>Verde: mejoró · rojo: empeoró (puntos porcentuales vs mes anterior)</span>}
           </div>
         </Card>
@@ -237,7 +244,7 @@ function SellerDetail({ s, session, onClose, onSimulate }: { s: Seller; session:
             <tbody>
               {b.items.map((x) => {
                 const p = prevItem(c, s.sheet, b.line, x.name);
-                const bd = band(x.pct);
+                const bd = itemBand(x);
                 return (
                   <tr key={x.name} className="border-t border-line-2">
                     <td className="px-2 py-1.5">{prettyItem(x.name)}</td>

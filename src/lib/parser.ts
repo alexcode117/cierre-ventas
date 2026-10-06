@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { checkCalculos, parseCalculos } from './calculos';
 import { fmt, monthKey, STATUS_LABEL } from './format';
-import { RULES, rulePoints, statusOf, thresholdOf } from './rules';
+import { rulePoints, STATUS_THRESHOLDS, statusOf, thresholdOf } from './rules';
 import type { Award, Block, DataAlert, Item, Line, Metas, MonthReport, Results, Seller, Status, Zona } from './types';
 
 type Cell = string | number | boolean | Date | null;
@@ -39,7 +39,7 @@ export function parseFile(buf: ArrayBuffer): MonthReport {
 }
 
 export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
-  const out: MonthReport = { month: null, key: null, sellers: [], results: null, awards: [], metas: null, alerts: [] };
+  const out: MonthReport = { basis: 'excel', month: null, key: null, sellers: [], results: null, awards: [], metas: null, alerts: [] };
   let calcRows: Rows | null = null;
   let legend: string[] | null = null;
 
@@ -72,7 +72,7 @@ export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
   checkConsistency(out);
   if (calcRows) out.alerts.push(...checkCalculos(out, parseCalculos(calcRows)));
   if (legend)
-    out.alerts.push({ level: 'info', text: `La leyenda del Excel dice ${legend.join(', ')}, y deja sin clasificar el 3 y los puntajes entre 9 y 10. La herramienta usa: Productivo desde ${RULES.productivo}, Estable desde ${RULES.estable}, Crítico por debajo de ${RULES.estable}.` });
+    out.alerts.push({ level: 'info', text: `La leyenda del Excel dice ${legend.join(', ')}, y deja sin clasificar el 3 y los puntajes entre 9 y 10. El Procedimiento de KPI's dice otra cosa (Productivo 7 o más, Estable de 4 a 6, Crítico menor a 3). La herramienta usa el procedimiento: Productivo desde ${STATUS_THRESHOLDS.procedimiento.productivo}, Estable desde ${STATUS_THRESHOLDS.procedimiento.estable}, Crítico por debajo de ${STATUS_THRESHOLDS.procedimiento.estable}.` });
   out.sellers.sort((a, b) => b.total - a.total);
   return out;
 }

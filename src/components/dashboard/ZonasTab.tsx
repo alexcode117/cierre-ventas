@@ -9,7 +9,7 @@ import { AWARD_STATUS_LABEL, type AwardStatus } from '@/lib/awards';
 import { RefBars, TargetBars, type BarRow } from '../charts/charts';
 import { Card, Pill, RiskPill, SectionHead, Segmented } from '../ui';
 
-const AWARD_CLS: Record<AwardStatus, string> = { ok: 'bg-good-bg text-good-ink', tie: 'bg-warn-bg text-warn-ink', mismatch: 'bg-crit-bg text-crit-ink', unverifiable: 'bg-line-2 text-ink-2' };
+const AWARD_CLS: Record<AwardStatus, string> = { ok: 'bg-good-bg text-good-ink', tie: 'bg-warn-bg text-warn-ink', mismatch: 'bg-crit-bg text-crit-ink', unverifiable: 'bg-line-2 text-ink-2', missing: 'bg-crit-bg text-crit-ink' };
 
 const SHARE_COLORS = ['var(--peg)', 'var(--pru)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
 

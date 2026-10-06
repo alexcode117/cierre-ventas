@@ -5,6 +5,9 @@ import { checkAwards } from '../src/lib/awards';
 import { matchProduct } from '../src/lib/match';
 import { compare, validatePair } from '../src/lib/compare';
 import { parseFile, ParseError } from '../src/lib/parser';
+import { applyProcedure, basisDiffs } from '../src/lib/procedure';
+import { pctDiffers } from '../src/lib/awards';
+import { buildSession, type LoadedFile } from '../src/lib/load';
 
 const load = (f: string) => {
   const b = readFileSync(`public/ejemplos/${f}`);
@@ -112,12 +115,11 @@ describe('auditoría', () => {
     expect(ago.alerts.some((x) => /leyenda del Excel/.test(x.text))).toBe(true);
   });
 
-  it('1.7 verifica reconocimientos: empates y mayor incremento con el mes anterior', () => {
-    const solo = checkAwards(ago, null);
-    expect(solo.find((c) => /NUEVOS CLIENTES/.test(c.award.criterio) && c.award.line === 'Pegutil')?.status).toBe('tie');
-    expect(solo.find((c) => /INCREMENTO/.test(c.award.criterio))?.status).toBe('unverifiable');
-    const conPrev = checkAwards(ago, jul);
-    expect(conPrev.find((c) => /INCREMENTO/.test(c.award.criterio) && c.award.line === 'Pegutil')?.status).toBe('ok');
+  it('1.7 verifica reconocimientos: empates y mayor incremento contra la meta', () => {
+    const checks = checkAwards(ago);
+    expect(checks.find((c) => c.key === 'ANC' && c.award.line === 'Pegutil')?.status).toBe('tie');
+    // El procedimiento mide el incremento contra la meta: no hace falta el mes anterior.
+    expect(checks.find((c) => c.key === 'CV' && c.award.line === 'Pegutil')?.status).toBe('ok');
   });
 
   it('empareja productos por palabra completa', () => {
@@ -125,5 +127,59 @@ describe('auditoría', () => {
     expect(matchProduct('UTIL TOP', items)?.name).toBe('VENTAS UTIL TOP');
     expect(matchProduct('Caucho', items)?.name).toMatch(/CAUCHOS/);
     expect(matchProduct('Esmalte', items)?.name).toBe('VENTAS ESMALTES');
+  });
+});
+
+// Procedimiento para cálculo de KPI's e incentivos para ventas (08/01/2025)
+describe("procedimiento de KPI's", () => {
+  const proc = applyProcedure(ago);
+  const seller = (sheet: string) => proc.sellers.find((s) => s.sheet === sheet)!;
+  const kpi = (sheet: string, line: string, k: string) => seller(sheet).blocks.find((b) => b.line === line)!.items.find((i) => i.kpi === k)!;
+
+  it('puntúa por tramos 3/1/0', () => {
+    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').pts).toBe(1); // cobranza 95% → 1 pt (el Excel daba 3)
+    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').excelPts).toBe(3);
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CV').pts).toBe(0); // sacos 89,6%: bajo el tramo de 90% → 0 (el Excel daba 3)
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CV').excelPts).toBe(3);
+    expect(kpi('ZONA LLANOS', 'Pegutil', 'CV').pts).toBe(0); // 62% → 0
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CT').pts).toBe(0); // 80% → 0
+  });
+
+  it('mide atención de cartera sobre la cartera total (objetivo ÷ 0,7)', () => {
+    const ac = kpi('LAURA MENDEZ', 'Pegutil', 'AC');
+    expect(ac.obj).toBeCloseTo(43.4 / 0.7, 6);
+    expect(ac.pct).toBeCloseTo((47 / (43.4 / 0.7)) * 100, 6);
+    expect(ac.pts).toBe(3);
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'AC').pts).toBe(0); // 25 de 60 clientes = 41,7% → 0
+    expect(kpi('MARIO TORREALBA', 'Pruven', 'AC').pts).toBe(1); // 35 de 64 = 54,7% → 1
+  });
+
+  it('mide Pruven por galones totales y deja los productos como informativos', () => {
+    const cv = kpi('LAURA MENDEZ', 'Pruven', 'CV');
+    expect(cv.pct).toBeCloseTo((1328.5 / 1150) * 100, 6);
+    expect(cv.pts).toBe(3);
+    const prods = seller('LAURA MENDEZ').blocks.find((b) => b.line === 'Pruven')!.items.filter((i) => i.kpi === 'PROD');
+    expect(prods).toHaveLength(6);
+    expect(prods.every((p) => p.pts === 0 && p.max === 0)).toBe(true);
+  });
+
+  it('usa los umbrales de estado del procedimiento y registra las diferencias con el Excel', () => {
+    const laura = seller('LAURA MENDEZ');
+    expect(laura.blocks.map((b) => b.score)).toEqual([10, 10]);
+    expect(laura.blocks.every((b) => b.status === 'PRODUCTIVO')).toBe(true);
+    expect(basisDiffs(proc).length).toBeGreaterThan(0);
+  });
+
+  it('valida los incentivos contra la tabla oficial', () => {
+    const checks = checkAwards(proc);
+    expect(checks.find((c) => c.key === 'CV' && c.award.line === 'Pegutil' && pctDiffers(c))?.officialPct).toBe(0.65);
+    expect(checks.filter((c) => c.status === 'missing').map((c) => `${c.award.line} ${c.key}`)).toEqual(['Pegutil MV', 'Pruven MV']);
+  });
+
+  it('arma la sesión en la base pedida', () => {
+    const b = readFileSync('public/ejemplos/ejemplo-agosto-2026.xlsx');
+    const f: LoadedFile = { name: 'x', size: b.length, hash: '', report: ago };
+    expect(buildSession(f, null).cur.report.basis).toBe('procedimiento');
+    expect(buildSession(f, null, 'excel').cur.report.basis).toBe('excel');
   });
 });

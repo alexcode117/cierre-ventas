@@ -1,6 +1,6 @@
 import { fmt, itemKey, signed } from './format';
 import { findSeller, findZona, matchProduct } from './match';
-import { itemMax, statusOf, thresholdOf } from './rules';
+import { itemMax, nextStep, statusOf } from './rules';
 import type { Insight, Line, MonthReport, Status } from './types';
 
 export { itemMax, meetsTarget } from './rules';
@@ -54,6 +54,7 @@ export function analyze(d: MonthReport): Analysis {
         const k = `${b.line}|${name}`;
         const e = loss.get(k) ?? { line: b.line, name, lost: 0, max: 0, fails: 0, n: 0, avgPct: 0, pcts: [] };
         const mx = itemMax(b, it);
+        if (!mx) continue; // indicadores informativos (ventas por producto en el procedimiento)
         e.max += mx;
         e.lost += mx - it.pts;
         e.n++;
@@ -72,16 +73,17 @@ export function analyze(d: MonthReport): Analysis {
   for (const s of d.sellers)
     for (const b of s.blocks)
       for (const it of b.items) {
-        if (it.ok || it.pct == null || it.pct < 70 || !it.obj) continue;
-        const need = (it.obj * thresholdOf(it)) / 100 - (it.real ?? 0);
+        const step = nextStep(b, it);
+        if (!step || it.pct == null || !it.obj || it.pct < step.pct * 0.7) continue;
+        const need = (it.obj * step.pct) / 100 - (it.real ?? 0);
         if (need <= 0) continue;
         const ratio = it.obj <= 1;
-        const gain = itemMax(b, it);
+        const gain = step.gain;
         const newScore = b.score + gain;
         nearMiss.push({
           seller: s.display, line: b.line, name: itemKey(it.name), pct: it.pct,
           needText: ratio ? `${fmt(need * 100)} puntos porcentuales` : `${fmt(need, 1)} unidades`,
-          gain, from: b.status, to: statusOf(newScore), score: b.score, newScore,
+          gain, from: b.status, to: statusOf(newScore, d.basis), score: b.score, newScore,
           cost: (ratio ? need * 100 : need) / gain,
         });
       }
@@ -149,7 +151,7 @@ export function analyze(d: MonthReport): Analysis {
   const crits = d.sellers.filter((s) => s.status === 'CRITICO');
   if (crits.length)
     add('crit', `${crits.map((s) => s.display).join(', ')} en estado crítico`,
-      crits.map((s) => `${s.display}: ${s.blocks.map((b) => `${b.line} ${fmt(b.score, 1)}/12`).join(' · ')}; cumple ${s.blocks.reduce((a, b) => a + b.items.filter((i) => i.ok).length, 0)} de ${s.blocks.reduce((a, b) => a + b.items.length, 0)} indicadores`).join('. ') + '.', ['Equipo']);
+      crits.map((s) => `${s.display}: ${s.blocks.map((b) => `${b.line} ${fmt(b.score, 1)}/12`).join(' · ')}; cumple ${s.blocks.reduce((a, b) => a + b.items.filter((i) => itemMax(b, i) > 0 && i.ok).length, 0)} de ${s.blocks.reduce((a, b) => a + b.items.filter((i) => itemMax(b, i) > 0).length, 0)} indicadores`).join('. ') + '.', ['Equipo']);
   const issues = d.alerts.filter((a) => a.level !== 'info').length;
   if (issues)
     add('warn', `${issues} ${issues === 1 ? 'cifra no cuadra' : 'cifras no cuadran'} entre hojas`,

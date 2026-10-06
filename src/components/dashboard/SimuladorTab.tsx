@@ -4,9 +4,8 @@ import clsx from 'clsx';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, RotateCcw, Wand2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { itemMax, meetsTarget } from '@/lib/analysis';
-import { rulePoints, RULES_TEXT, thresholdOf } from '@/lib/rules';
-import { band, fmt, prettyItem, statusOf } from '@/lib/format';
+import { itemBand, fmt, prettyItem, ptsLabel } from '@/lib/format';
+import { nextStep, rulePoints, rulesText, scoreAt, STATUS_THRESHOLDS, statusOf, thresholdOf } from '@/lib/rules';
 import type { Session } from '@/lib/load';
 import type { Line } from '@/lib/types';
 import { Button, Card, CountUp, SectionHead, Segmented, StatusPill } from '../ui';
@@ -17,7 +16,8 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
   const d = session.cur.report;
   const s = d.sellers[seller] ?? d.sellers[0];
   const [sim, setSim] = useState<Record<string, number>>({});
-  // 'excel': respeta los puntos del Excel en lo que no se ha movido. 'regla': recalcula todo con la regla.
+  const proc = session.basis === 'procedimiento';
+  // Solo con la base Excel: 'excel' respeta los puntos del archivo en lo que no se ha movido; 'regla' recalcula todo.
   const [basis, setBasis] = useState<'excel' | 'regla'>('excel');
 
   const res = useMemo(() => s?.blocks.map((b, bi) => {
@@ -27,13 +27,14 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
       const real = sim[k] ?? it.real ?? 0;
       const pct = it.obj ? (real / it.obj) * 100 : it.pct ?? 0;
       const changed = sim[k] != null && sim[k] !== it.real;
-      const pts = changed || basis === 'regla' ? (meetsTarget(it, pct) ? itemMax(b, it) : 0) : it.pts;
-      const offRule = it.pct != null && rulePoints(b, it) !== it.pts;
+      const pts = changed || basis === 'regla' ? scoreAt(b, it, pct) : it.pts;
+      // Con el procedimiento se marca dónde el Excel daba otros puntos; con la base Excel, dónde el Excel no sigue su propia regla.
+      const offRule = proc ? it.kpi !== 'PROD' && it.excelPts != null && it.excelPts !== it.pts : it.pct != null && rulePoints(b, it) !== it.pts;
       score += pts;
       return { it, k, real, pct, pts, changed, offRule };
     });
-    return { b, items, score, status: statusOf(score) };
-  }) ?? [], [s, sim, basis]);
+    return { b, items, score, status: statusOf(score, session.basis) };
+  }) ?? [], [s, sim, basis, proc, session.basis]);
 
   if (!s) return <p className="text-ink-2">El archivo no tiene hojas de vendedor.</p>;
   const offRuleCount = res.reduce((a, r) => a + r.items.filter((x) => x.offRule).length, 0);
@@ -44,7 +45,8 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
   function closeNear() {
     const next: Record<string, number> = {};
     s.blocks.forEach((b, bi) => b.items.forEach((it, ii) => {
-      if (!it.ok && it.pct != null && it.pct >= 70 && it.obj) next[`${bi}:${ii}`] = /COBRANZA/i.test(it.name) ? Math.ceil(it.obj * 90) / 100 : it.obj;
+      const step = nextStep(b, it);
+      if (step && it.pct != null && it.obj && it.pct >= step.pct * 0.7) next[`${bi}:${ii}`] = Math.ceil(((it.obj * step.pct) / 100) * 100) / 100;
     }));
     setSim(next);
   }
@@ -64,10 +66,10 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
 
       <Card className="flex flex-wrap items-center justify-between gap-3 px-4.5 py-3">
         <div className="min-w-0 text-[13px] text-ink-2">
-          <b className="font-semibold text-ink">Punto de partida.</b> {RULES_TEXT}
-          {offRuleCount > 0 && <span className="text-warn-ink"> En {s.display.split(' ')[0]}, {offRuleCount} {offRuleCount === 1 ? 'indicador tiene' : 'indicadores tienen'} puntos del Excel que no siguen esta regla (marcados abajo).</span>}
+          <b className="font-semibold text-ink">Reglas.</b> {rulesText(session.basis)}
+          {offRuleCount > 0 && <span className="text-warn-ink"> En {s.display.split(' ')[0]}, {offRuleCount} {offRuleCount === 1 ? 'indicador tiene' : 'indicadores tienen'} {proc ? 'otros puntos en el Excel' : 'puntos del Excel que no siguen esta regla'} (marcados abajo).</span>}
         </div>
-        <Segmented label="Punto de partida" value={basis} onChange={setBasis} options={[['excel', 'Puntos del Excel'], ['regla', 'Aplicar la regla a todo']]} />
+        {!proc && <Segmented label="Punto de partida" value={basis} onChange={setBasis} options={[['excel', 'Puntos del Excel'], ['regla', 'Aplicar la regla a todo']]} />}
       </Card>
 
       <div className="grid items-start gap-3 lg:grid-cols-[1.5fr_1fr]">
@@ -84,15 +86,16 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
                 const max = Math.max(obj * 1.6, (x.it.real ?? 0) * 1.1, ratio ? 1 : 1);
                 const step = ratio ? 0.01 : obj >= 200 ? 1 : obj >= 20 ? 0.5 : 1;
                 const show = (v: number) => (ratio ? `${fmt(v * 100)}%` : fmt(v, 1));
-                const bd = band(x.pct);
+                const bd = itemBand(x.it, x.pts, x.pct);
                 return (
                   <div key={x.k} className={clsx('grid grid-cols-[1fr_70px_56px] items-center gap-x-3 gap-y-1 border-t border-line-2 px-4.5 py-2 text-[13.5px] transition-colors sm:grid-cols-[minmax(130px,1.1fr)_minmax(120px,1.4fr)_84px_62px]', x.changed && 'bg-accent-soft')}>
                     <label htmlFor={`sim-${x.k}`} className="min-w-0">{prettyItem(x.it.name)}<small className="block text-[11.5px] text-ink-3">Objetivo {show(obj)} · real {show(x.it.real ?? 0)}</small>
-                      {x.offRule && <small className="mt-0.5 block text-[11.5px] font-medium text-warn-ink">El Excel le da {fmt(x.it.pts, 1)} pts con {fmt(x.it.pct, 1)}% (la regla pide {thresholdOf(x.it)}%)</small>}</label>
+                      {x.offRule && <small className="mt-0.5 block text-[11.5px] font-medium text-warn-ink">{proc ? `El Excel le da ${fmt(x.it.excelPts, 1)} pts; el procedimiento, ${fmt(x.it.pts, 1)}` : `El Excel le da ${fmt(x.it.pts, 1)} pts con ${fmt(x.it.pct, 1)}% (la regla pide ${thresholdOf(x.it)}%)`}</small>}
+                      {x.it.kpi === 'PROD' && <small className="mt-0.5 block text-[11.5px] text-ink-3">Informativo: el procedimiento mide Pruven por galones totales</small>}</label>
                     <input id={`sim-${x.k}`} type="range" min={0} max={max} step={step} value={x.real} onChange={(e) => setSim({ ...sim, [x.k]: +e.target.value })}
                       className="col-span-3 row-start-2 w-full sm:col-span-1 sm:row-start-auto" />
                     <span className="text-right font-semibold">{show(x.real)}<small className={clsx('block text-[11.5px] font-medium', bd === 'good' ? 'text-good-ink' : bd === 'crit' ? 'text-crit-ink' : 'text-warn-ink')}>{fmt(x.pct)}%</small></span>
-                    <motion.span key={x.pts} initial={{ scale: 1.25 }} animate={{ scale: 1 }} className={clsx('text-right font-bold', x.pts > 0 ? 'text-good-ink' : 'text-crit-ink')}>{fmt(x.pts, 1)} pts</motion.span>
+                    <motion.span key={x.pts} initial={{ scale: 1.25 }} animate={{ scale: 1 }} className={clsx('text-right font-bold', x.pts > 0 ? 'text-good-ink' : 'text-crit-ink')}>{ptsLabel(x.pts)}</motion.span>
                   </div>
                 );
               })}
@@ -114,7 +117,7 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
                 <span className="text-ink-2">{r.b.line}</span>
                 <span className="relative h-2.5 rounded-full bg-track">
                   <motion.i className="absolute inset-y-0 left-0 rounded-full" style={{ background: lineColor(r.b.line) }} animate={{ width: `${(r.score / 12) * 100}%` }} transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }} />
-                  <span className="absolute -top-[3px] -bottom-[3px] w-[1.5px] bg-ink-3" style={{ left: `${(10 / 12) * 100}%` }} />
+                  <span className="absolute -top-[3px] -bottom-[3px] w-[1.5px] bg-ink-3" style={{ left: `${(STATUS_THRESHOLDS[session.basis].productivo / 12) * 100}%` }} />
                 </span>
                 <span className="font-semibold">{fmt(r.score, 1)}<span className="font-normal text-ink-3">/12</span></span>
               </div>
@@ -132,7 +135,7 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
           ))}
           <p className="text-[12.5px] text-ink-2">
             {changed ? `${changed} indicador${changed > 1 ? 'es' : ''} modificado${changed > 1 ? 's' : ''}. ` : ''}
-            {basis === 'excel' ? 'Parte de los puntos del Excel; lo que mueva se recalcula con la regla.' : 'Todos los indicadores se recalculan con la regla.'} Ventas Pruven valen 0,5 pts; los demás indicadores, 3 pts.
+            {proc ? 'Puntos según el procedimiento: 3, 1 o 0 por indicador según el tramo alcanzado.' : basis === 'excel' ? 'Parte de los puntos del Excel; lo que mueva se recalcula con la regla. Ventas Pruven valen 0,5 pts; los demás indicadores, 3 pts.' : 'Todos los indicadores se recalculan con la regla. Ventas Pruven valen 0,5 pts; los demás indicadores, 3 pts.'}
           </p>
         </Card>
       </div>

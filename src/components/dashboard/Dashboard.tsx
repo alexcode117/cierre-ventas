@@ -6,8 +6,10 @@ import { ArrowLeft, FileDown, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
-import { RULES_TEXT } from '@/lib/rules';
-import { Button } from '../ui';
+import { rulesText } from '@/lib/rules';
+import type { Basis } from '@/lib/types';
+import { Button, Segmented } from '../ui';
+import ProcedimientoTab from './ProcedimientoTab';
 import ResumenTab from './ResumenTab';
 import SimuladorTab from './SimuladorTab';
 import VendedoresTab from './VendedoresTab';
@@ -18,10 +20,11 @@ const TABS = [
   ['vendedores', 'Vendedores'],
   ['zonas', 'Zonas y productos'],
   ['simulador', 'Simulador'],
+  ['procedimiento', 'Procedimiento'],
 ] as const;
 export type TabKey = (typeof TABS)[number][0];
 
-export default function Dashboard({ session, onReset }: { session: Session; onReset: () => void }) {
+export default function Dashboard({ session, onReset, onBasis }: { session: Session; onReset: () => void; onBasis: (b: Basis) => void }) {
   const [tab, setTab] = useState<TabKey>('resumen');
   const [simSeller, setSimSeller] = useState(0);
   const [pdfState, setPdfState] = useState<'idle' | 'busy' | 'error'>('idle');
@@ -63,7 +66,11 @@ export default function Dashboard({ session, onReset }: { session: Session; onRe
             {' '}· {cur.report.sellers.length} vendedores con hoja
           </p>
         </div>
-        <div className="grid justify-items-end gap-1">
+        <div className="grid justify-items-end gap-2">
+          <div className="flex items-center gap-2" title="Base para calcular puntos y estados">
+            <span className="text-[12.5px] text-ink-2">Puntos según</span>
+            <Segmented label="Base de cálculo" value={session.basis} onChange={onBasis} options={[['procedimiento', 'Procedimiento'], ['excel', 'Excel']]} />
+          </div>
           <Button variant="primary" onClick={downloadPdf} disabled={pdfState === 'busy'}>
             {pdfState === 'busy' ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <FileDown size={16} aria-hidden />}
             {pdfState === 'busy' ? 'Generando informe…' : 'Descargar informe PDF'}
@@ -87,12 +94,14 @@ export default function Dashboard({ session, onReset }: { session: Session; onRe
           {tab === 'resumen' && <ResumenTab session={session} onGo={go} />}
           {tab === 'vendedores' && <VendedoresTab session={session} onSimulate={(i) => { setSimSeller(i); go('simulador'); }} />}
           {tab === 'zonas' && <ZonasTab session={session} />}
-          {tab === 'simulador' && <SimuladorTab session={session} seller={simSeller} onSeller={setSimSeller} />}
+          {tab === 'simulador' && <SimuladorTab key={session.basis} session={session} seller={simSeller} onSeller={setSimSeller} />}
+          {tab === 'procedimiento' && <ProcedimientoTab session={session} onBasis={onBasis} />}
         </motion.section>
       </AnimatePresence>
 
       <p className="text-[12.5px] text-ink-3">
-        {RULES_TEXT} Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.
+        {rulesText(session.basis)}{' '}
+        {session.basis === 'procedimiento' ? 'Colores de los indicadores: verde 3 pts, ámbar 1 pt, rojo 0 pts.' : 'Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.'}
       </p>
     </motion.div>
   );

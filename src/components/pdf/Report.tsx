@@ -1,11 +1,12 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
 import { prevItem } from '@/lib/compare';
-import { band, fmt, prettyItem, STATUS_LABEL, titleCase } from '@/lib/format';
-import { AWARD_STATUS_LABEL, type AwardStatus } from '@/lib/awards';
+import { fmt, itemBand, prettyItem, ptsLabel, STATUS_LABEL, titleCase } from '@/lib/format';
+import { AWARD_STATUS_LABEL, pctDiffers, type AwardStatus } from '@/lib/awards';
 import type { TeamMetric } from '@/lib/analysis';
 import type { LoadedFile, Session } from '@/lib/load';
-import { RULES_TEXT } from '@/lib/rules';
+import { applyProcedure } from '@/lib/procedure';
+import { INCENTIVES, KPI_LABEL, rulesText } from '@/lib/rules';
 import type { Insight, Status } from '@/lib/types';
 
 // Helvetica (fuente estándar del PDF) solo cubre Latin-1: se reemplazan los símbolos que no incluye.
@@ -19,7 +20,7 @@ const C = {
   warn: '#fab219', warnBg: '#fdf1d6', warnInk: '#8a5a00',
   crit: '#d03b3b', critBg: '#f9e1e1', critInk: '#a32626',
 };
-const AWARD_C: Record<AwardStatus, [string, string]> = { ok: [C.goodBg, C.goodInk], tie: [C.warnBg, C.warnInk], mismatch: [C.critBg, C.critInk], unverifiable: [C.line2, C.ink2] };
+const AWARD_C: Record<AwardStatus, [string, string]> = { ok: [C.goodBg, C.goodInk], tie: [C.warnBg, C.warnInk], mismatch: [C.critBg, C.critInk], unverifiable: [C.line2, C.ink2], missing: [C.critBg, C.critInk] };
 const STATUS_C: Record<Status, [string, string]> = { PRODUCTIVO: [C.goodBg, C.goodInk], ESTABLE: [C.warnBg, C.warnInk], CRITICO: [C.critBg, C.critInk] };
 const BAND_C = { good: [C.goodBg, C.goodInk], warn: [C.warnBg, C.warnInk], crit: [C.critBg, C.critInk], none: ['#ffffff', C.ink3] } as const;
 const SEV_C = { crit: C.crit, warn: C.warn, good: C.good, info: C.accent };
@@ -118,6 +119,7 @@ export default function ReportDoc({ s }: { s: Session }) {
   const month = titleCase(d.month ?? 'Mes sin identificar');
   const prevShort = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')).toLowerCase() : '';
   const insights = s.insights;
+  const proc = s.basis === 'procedimiento' ? d : applyProcedure(s.source.cur.report);
   const when = s.generatedAt.toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
   const zonas = R?.zonas ?? [];
   const metaOf = (sheet: string | null) => d.sellers.find((x) => x.sheet === sheet);
@@ -148,6 +150,7 @@ export default function ReportDoc({ s }: { s: Session }) {
           <Text style={st.eyebrow}>Gerencia de Ventas · Informe de cierre</Text>
           <Text style={[st.h1, { marginTop: 8 }]}>Resultados {t(month)}</Text>
           {c && <Text style={{ fontSize: 12, color: C.ink2, marginTop: 6 }}>Comparado con {t(titleCase(c.prevMonth))}</Text>}
+          <Text style={{ fontSize: 10, color: C.ink2, marginTop: 6 }}>{s.basis === 'procedimiento' ? "Puntos y estados según el Procedimiento de KPI's (08/01/2025)" : 'Puntos y estados según el Excel'}</Text>
           <Text style={{ fontSize: 10, color: C.ink2, marginTop: 14 }}>Emitido el {t(when)}</Text>
         </View>
 
@@ -173,7 +176,7 @@ export default function ReportDoc({ s }: { s: Session }) {
           ))}
         </View>
         <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 8 }}>
-          <Text style={{ fontSize: 8, color: C.ink3 }}>Informe generado automáticamente en el navegador a partir de los archivos indicados; no se almacenó ningún dato. {t(RULES_TEXT)} Ventas por zona según RESULTADOS; puntos y metas individuales según la hoja de cada vendedor.</Text>
+          <Text style={{ fontSize: 8, color: C.ink3 }}>Informe generado automáticamente en el navegador a partir de los archivos indicados; no se almacenó ningún dato. {t(rulesText(s.basis))} Ventas por zona según RESULTADOS; puntos y metas individuales según la hoja de cada vendedor.</Text>
         </View>
         </View>
         <Footer month={month} />
@@ -232,7 +235,7 @@ export default function ReportDoc({ s }: { s: Session }) {
                     {d.sellers.map((x) => {
                       const b = x.blocks.find((y) => y.line === ln);
                       const v = b && (b.items.find((y) => y.name === it.name) ?? b.items[k]);
-                      const [bg, fg] = BAND_C[band(v?.pct)];
+                      const [bg, fg] = BAND_C[v ? itemBand(v) : 'none'];
                       const p = v && prevItem(c, x.sheet, ln, v.name);
                       return (
                         <View key={x.sheet} style={{ width: cellW, padding: 1.5 }}>
@@ -277,6 +280,70 @@ export default function ReportDoc({ s }: { s: Session }) {
             <HBar key={x.line + x.name} label={x.name} sub={`${x.line} · fallan ${x.fails} de ${x.n}`} value={x.lost} max={Math.max(...a.pointLoss.map((y) => y.lost)) * 1.05} color={x.line === 'Pegutil' ? C.peg : C.pru} right={`${fmt(x.lost, 1)} pts`} />
           ))}
         </Section>
+        </View>
+        <Footer month={month} />
+      </Page>
+
+      {/* Procedimiento de KPI's */}
+      <Page size="A4" style={st.page}>
+        <View style={st.body}>
+          <Section title="Excel frente al Procedimiento de KPI's" sub="Puntaje por línea (máx. 12). Indicadores: % logrado y puntos según el procedimiento; entre paréntesis, los del Excel cuando difieren">
+            <View style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line }]} wrap={false}>
+              <Text style={[st.th, { width: 110 }]}>Vendedor · línea</Text>
+              {(['CV', 'CT', 'AC', 'ANC'] as const).map((k) => <Text key={k} style={[st.th, { width: 70, textAlign: 'center' }]}>{t(KPI_LABEL[k])}</Text>)}
+              <Text style={[st.th, { width: 52, textAlign: 'right' }]}>Excel</Text>
+              <Text style={[st.th, { width: 52, textAlign: 'right' }]}>Proced.</Text>
+            </View>
+            {proc.sellers.flatMap((x) => x.blocks.map((b) => (
+              <View key={x.sheet + b.line} style={[st.row, { alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: C.line2 }]} wrap={false}>
+                <Text style={{ width: 110, paddingHorizontal: 4, fontSize: 8.5 }}><Text style={st.bold}>{t(x.display)}</Text> · {b.line}</Text>
+                {(['CV', 'CT', 'AC', 'ANC'] as const).map((k) => {
+                  const it = b.items.find((i) => i.kpi === k);
+                  const [bg, fg] = BAND_C[it ? itemBand(it) : 'none'];
+                  return (
+                    <View key={k} style={{ width: 70, padding: 1.5 }}>
+                      <View style={{ backgroundColor: bg, borderRadius: 2, paddingVertical: 2.5, alignItems: 'center' }}>
+                        <Text style={{ color: fg, fontFamily: 'Helvetica-Bold', fontSize: 8 }}>{it ? `${fmt(it.pct, 1)}%` : '-'}</Text>
+                        {it && <Text style={{ color: fg, fontSize: 6.5 }}>{t(`${ptsLabel(it.pts)}${it.excelPts != null && it.excelPts !== it.pts ? ` (${fmt(it.excelPts, 1)})` : ''}`)}</Text>}
+                      </View>
+                    </View>
+                  );
+                })}
+                <Text style={{ width: 52, textAlign: 'right', fontSize: 8.5, color: STATUS_C[b.excelStatus ?? b.status][1] }}>{fmt(b.excelScore, 1)}</Text>
+                <Text style={{ width: 52, textAlign: 'right', fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: STATUS_C[b.status][1] }}>{fmt(b.score, 1)}</Text>
+              </View>
+            )))}
+            <Text style={{ fontSize: 7.5, color: C.ink3, marginTop: 4 }}>{t('Tramos: crecimiento en ventas y cobranza, 3 pts desde 100% y 1 pt desde 90%; atención de cartera (sobre la cartera total, estimada como objetivo del Excel ÷ 0,7), 3 pts desde 70% y 1 pt desde 50%; nuevos clientes, 3 pts si cumple. Estados: Productivo desde 7, Estable desde 4, Crítico por debajo de 4. En Pruven el Excel reparte el crecimiento en 6 productos de 0,5 pts; el procedimiento mide los galones totales.')}</Text>
+          </Section>
+
+          <Section title="Tabla de incentivos" sub="% sobre la base de cálculo según el procedimiento, frente a lo que asigna RESULTADOS">
+            {(['Pegutil', 'Pruven'] as const).map((line) => {
+              const excelTotal = s.awards.filter((x) => x.award.line === line && x.status !== 'missing').reduce((a, x) => a + (x.award.pct ?? 0), 0);
+              return (
+                <View key={line} style={{ marginBottom: 8 }} wrap={false}>
+                  <Text style={[st.bold, { fontSize: 9.5, marginBottom: 2 }]}>{line}</Text>
+                  {INCENTIVES[line].map((r) => {
+                    const cc = s.awards.find((x) => x.award.line === line && x.key === r.key);
+                    const ex = cc && cc.status !== 'missing' ? cc.award.pct : null;
+                    return (
+                      <View key={r.key} style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line2, paddingVertical: 2.5 }]}>
+                        <Text style={{ flex: 1 }}>{t(r.label)}</Text>
+                        <Text style={{ width: 55, textAlign: 'right' }}>{fmt(r.pct, 2)}%</Text>
+                        <Text style={{ width: 70, textAlign: 'right', color: ex == null || (cc && pctDiffers(cc)) ? C.critInk : C.ink }}>{ex != null ? `Excel ${fmt(ex, 2)}%` : 'no asignado'}</Text>
+                        <Text style={{ width: 110, textAlign: 'right', color: C.ink2 }}>{cc ? t(`${cc.status !== 'missing' ? titleCase(cc.award.ejecutivo) + ' · ' : ''}${AWARD_STATUS_LABEL[cc.status]}`) : ''}</Text>
+                      </View>
+                    );
+                  })}
+                  <View style={[st.row, { paddingVertical: 2.5 }]}>
+                    <Text style={[st.bold, { flex: 1 }]}>Total</Text>
+                    <Text style={[st.bold, { width: 55, textAlign: 'right' }]}>{fmt(INCENTIVES[line].reduce((a, r) => a + r.pct, 0), 2)}%</Text>
+                    <Text style={[st.bold, { width: 70, textAlign: 'right' }]}>Excel {fmt(excelTotal, 2)}%</Text>
+                    <Text style={{ width: 110 }} />
+                  </View>
+                </View>
+              );
+            })}
+          </Section>
         </View>
         <Footer month={month} />
       </Page>

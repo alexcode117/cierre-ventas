@@ -14,6 +14,7 @@ Convierte el Excel mensual de indicadores del equipo de ventas en un dashboard i
 | Vendedores | Ranking con puntaje Pegutil/Pruven, mapa de cumplimiento (% de meta, lo que falta, puntos o cambio vs mes anterior), detalle por vendedor y revisión de inconsistencias del archivo |
 | Zonas y productos | Ventas por zona contra meta, venta cruzada, participación, cumplimiento por producto Pruven, metas del próximo mes con nivel de riesgo y reconocimientos |
 | Simulador | Mueve el resultado de cada indicador y recalcula puntaje y estado del vendedor |
+| Procedimiento | Excel frente al Procedimiento de KPI's, fórmulas y rangos, y tabla de incentivos oficial frente a RESULTADOS |
 
 ## Formato del Excel
 
@@ -28,18 +29,24 @@ Las celdas se buscan por su texto, no por posición fija, así que mover tablas 
 
 ## Reglas y fuentes de cada cifra
 
-Las reglas de puntaje están en un solo archivo, `src/lib/rules.ts`, y las usan el lector, el análisis, el simulador y el PDF:
+Hay dos bases de cálculo de puntos y estados, que se eligen con el selector **Puntos según: Procedimiento / Excel** del dashboard. Las reglas de ambas están en `src/lib/rules.ts`.
 
-- Un indicador se cumple con el 100% del objetivo; cobranza, con el 90%.
-- Cada línea suma hasta 12 puntos: Productivo desde 10, Estable desde 4, Crítico por debajo de 4. La leyenda del Excel ("mayor a 10", "de 4 a 9", "menor a 3") deja huecos en 3 y entre 9 y 10; la herramienta lo indica en la revisión del archivo.
-- Los puntos oficiales son los del Excel. Si el CUMPLE del Excel contradice la regla, se marca como **Revisar** (o **Crítico** si cambia el estado del vendedor) y el simulador permite recalcular todo con la regla.
+- **Procedimiento** (por defecto): *Procedimiento para cálculo de KPI's e incentivos para ventas* (08/01/2025). Cuatro indicadores por línea con tramos de puntos:
+  - Crecimiento en ventas (ventas ÷ meta; sacos en Pegutil, galones en Pruven) y cobranza a tiempo: 3 pts desde el 100%, 1 pt desde el 90%.
+  - Atención de cartera (clientes que compraron ÷ cartera total, estimada como objetivo del Excel ÷ 0,7): 3 pts desde el 70%, 1 pt desde el 50%.
+  - Nuevos clientes: 3 pts si cumple.
+  - Estados: Productivo desde 7, Estable desde 4, Crítico por debajo de 4. El documento deja sin clasificar el 3 y los puntajes entre 6 y 7; la herramienta los completa así.
+  - Las ventas por producto de Pruven se muestran como información, sin puntos.
+- **Excel**: los puntos del libro (cumple con el 100%, cobranza con el 90%; Productivo desde 10). Si el CUMPLE del Excel contradice esa regla, se marca como **Revisar** (o **Crítico** si cambia el estado).
+
+La pestaña **Procedimiento** compara las dos bases indicador por indicador y valida la tabla de incentivos de RESULTADOS contra la oficial: porcentajes, ganadores (incluido el empate), y el premio "Mejor manejo de variables", que el Excel no asigna.
 
 Fuente de cada cifra:
 
 - **Puntos, metas individuales y tarjetas de vendedor:** la hoja de cada vendedor. Si RESULTADOS dice otra cosa, la tarjeta lo muestra.
 - **Ventas por zona y totales del equipo:** RESULTADOS.
 - **Cumplimiento del equipo:** ventas y meta de la misma base. Si la meta del equipo es la suma de las metas individuales, las zonas sin hoja (sin meta propia) se excluyen de las ventas y se informan aparte.
-- **Reconocimientos:** se verifican contra las hojas de vendedor (empates, ganador distinto). "Mayor incremento" solo se verifica si se carga el mes anterior.
+- **Reconocimientos:** se verifican contra las hojas de vendedor según los criterios del procedimiento. "Mayor incremento" se mide contra la meta (solo cuenta por encima del 100%).
 
 ## Desarrollo
 

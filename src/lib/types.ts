@@ -1,6 +1,11 @@
 export type Status = 'PRODUCTIVO' | 'ESTABLE' | 'CRITICO';
 export type Line = 'Pegutil' | 'Pruven';
 
+/** Indicadores del Procedimiento de KPI's: crecimiento en ventas, cobranza a tiempo, atención de cartera, nuevos clientes. PROD = venta de un producto (informativa). */
+export type KpiKey = 'CV' | 'CT' | 'AC' | 'ANC' | 'PROD';
+/** Base de cálculo de puntos y estados. */
+export type Basis = 'procedimiento' | 'excel';
+
 export interface Item {
   name: string;
   obj: number | null;
@@ -8,6 +13,12 @@ export interface Item {
   pct: number | null;
   ok: boolean;
   pts: number;
+  /** Solo en la evaluación según el procedimiento. */
+  kpi?: KpiKey;
+  /** Puntos máximos del indicador cuando no se infieren del nombre (procedimiento). */
+  max?: number;
+  /** Puntos que le asigna el Excel (referencia en la evaluación según el procedimiento). */
+  excelPts?: number;
 }
 
 export interface Block {
@@ -22,6 +33,9 @@ export interface Block {
   /** Estado escrito en el título del bloque, p. ej. "(ESTABLE)". */
   declared: Status | null;
   status: Status;
+  /** En la evaluación según el procedimiento: puntaje y estado que daba el Excel. */
+  excelScore?: number;
+  excelStatus?: Status;
 }
 
 export interface Seller {
@@ -34,6 +48,9 @@ export interface Seller {
   galones: { meta: number | null; real: number | null };
   total: number;
   status: Status;
+  /** En la evaluación según el procedimiento: total y estado que daba el Excel. */
+  excelTotal?: number;
+  excelStatus?: Status;
 }
 
 export interface Zona {
@@ -70,6 +87,8 @@ export interface DataAlert {
 }
 
 export interface MonthReport {
+  /** Con qué reglas están calculados puntos y estados. El lector siempre entrega 'excel'. */
+  basis: Basis;
   month: string | null;
   /** "2026-08" */
   key: string | null;
