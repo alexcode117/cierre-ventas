@@ -1,5 +1,6 @@
 'use client';
 
+import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { fmt, prettyItem, titleCase } from '@/lib/format';
@@ -45,24 +46,6 @@ export default function ZonasTab({ session }: { session: Session }) {
 
   return (
     <div className="grid gap-7">
-      <section className="grid items-start gap-3 lg:grid-cols-2">
-        <Card className="grid min-w-0 gap-2 px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="display text-base font-bold">Ventas por zona contra meta</h3>
-            <Segmented label="Unidad" value={metric} onChange={setMetric} options={[['sacos', 'Sacos'], ['galones', 'Galones']]} />
-          </div>
-          <p className="text-[12.5px] text-ink-3">Barra: vendido según RESULTADOS · marca: meta individual de la hoja del vendedor{prev ? ` · gris: ${prevLabel?.toLowerCase()}` : ''}. Si la hoja del vendedor reporta otra cifra, aparece en el detalle de la barra.</p>
-          <TargetBars rows={rows} color={metric === 'sacos' ? 'peg' : 'pru'} unit={metric} prevLabel={prevLabel} />
-        </Card>
-        <Card className="grid min-w-0 gap-2 px-4 py-4">
-          <h3 className="display text-base font-bold">Venta cruzada por zona</h3>
-          <p className="text-[12.5px] text-ink-3">Galones Pruven por cada 100 sacos Pegutil · línea punteada: promedio del equipo</p>
-          <RefBars color="pru" label="Venta cruzada por zona" refValue={a.teamCross ?? 0} refLabel={`Prom. ${fmt(a.teamCross, 1)}`}
-            rows={a.crossSell.map((x) => ({ name: x.zona, value: +x.r.toFixed(1), tip: `<b>${x.zona}</b><br/>${fmt(x.r, 1)} galones por cada 100 sacos` }))} />
-          <p className="text-[13px] text-ink-2">Las zonas bajo el promedio tienen clientes que ya compran Pegutil pero no llevan Pruven: es la oportunidad más directa para la línea de galones.</p>
-        </Card>
-      </section>
-
       <section className="grid gap-3">
         <SectionHead title="Participación en sacos vendidos" sub="Qué tan concentrado está el volumen del equipo" />
         <Card className="grid gap-3 px-4.5 py-4">
@@ -80,16 +63,24 @@ export default function ZonasTab({ session }: { session: Session }) {
         </Card>
       </section>
 
-      {pl.length > 0 && (
-        <section className="grid gap-3">
-          <SectionHead title="Línea Pruven por producto" sub="Suma de vendedores con hoja · % de la meta del producto · línea punteada: 100%" />
-          <Card className="px-4 py-3">
+      <section className={clsx('grid items-start gap-3', pl.length > 0 && 'lg:grid-cols-2')}>
+        <Card className="grid min-w-0 gap-2 px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="display text-base font-bold">Ventas por zona contra meta</h3>
+            <Segmented label="Unidad" value={metric} onChange={setMetric} options={[['sacos', 'Sacos'], ['galones', 'Galones']]} />
+          </div>
+          <p className="text-[12.5px] text-ink-3">Barra: vendido según RESULTADOS · marca: meta individual de la hoja del vendedor{prev ? ` · gris: ${prevLabel?.toLowerCase()}` : ''}. Si la hoja del vendedor reporta otra cifra, aparece en el detalle de la barra.</p>
+          <TargetBars rows={rows} color={metric === 'sacos' ? 'peg' : 'pru'} unit={metric} prevLabel={prevLabel} />
+        </Card>
+        {pl.length > 0 && (
+          <Card className="grid min-w-0 gap-2 px-4 py-4">
+            <h3 className="display text-base font-bold">Línea Pruven por producto</h3>
+            <p className="text-[12.5px] text-ink-3">Suma de vendedores con hoja · % de la meta del producto · línea punteada: 100%</p>
             <RefBars color="pru" label="Cumplimiento por producto Pruven" refValue={100} refLabel="Meta" suffix="%"
               rows={pl.map((x) => ({ name: x.k, value: +x.p.toFixed(1), tip: `<b>${x.k}</b><br/>Real ${fmt(x.real, 1)} de ${fmt(x.obj)}<br/>${x.by.join(' · ')}` }))} />
           </Card>
-        </section>
-      )}
-
+        )}
+      </section>
 
       {d.awards.length > 0 && (
         <section className="grid gap-3">
