@@ -36,9 +36,9 @@ Hay dos bases de cálculo de puntos y estados, que se eligen con el selector **P
   - Crecimiento en ventas (ventas ÷ meta; sacos en Pegutil, galones en Pruven) y cobranza a tiempo: 3 pts desde el 100%, 1 pt desde el 90%.
   - Atención de cartera (clientes que compraron ÷ cartera total, estimada como objetivo del Excel ÷ 0,7): 3 pts desde el 70%, 1 pt desde el 50%.
   - Nuevos clientes: 3 pts si cumple.
-  - Estados: Productivo desde 7, Estable desde 4, Crítico por debajo de 4. El documento deja sin clasificar el 3 y los puntajes entre 6 y 7; la herramienta los completa así.
+  - Estados (escala corregida por la gerencia, igual en las dos bases): Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos. Reemplaza la del documento (≥ 7 / 4 a 6 / < 3) y la leyenda del Excel (> 10 / 4 a 9 / < 3), que dejaban puntajes sin clasificar.
   - Las ventas por producto de Pruven se muestran como información, sin puntos.
-- **Excel**: los puntos del libro (cumple con el 100%, cobranza con el 90%; Productivo desde 10). Si el CUMPLE del Excel contradice esa regla, se marca como **Revisar** (o **Crítico** si cambia el estado).
+- **Excel**: los puntos del libro (cumple con el 100%, cobranza con el 90%), con la misma escala de estados. Si el CUMPLE del Excel contradice esa regla, se marca como **Revisar** (o **Crítico** si cambia el estado).
 
 La pestaña **Procedimiento** compara las dos bases indicador por indicador y valida la tabla de incentivos de RESULTADOS contra la oficial: porcentajes, ganadores (incluido el empate) y premios oficiales que el Excel no asigna. El premio "Mejor manejo de variables" del documento no se usa.
 

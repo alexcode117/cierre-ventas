@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { AWARD_STATUS_LABEL, pctDiffers } from '@/lib/awards';
-import { fmt, itemBand, ptsLabel, STATUS_LABEL, titleCase } from '@/lib/format';
+import { fmt, itemBand, ptsLabel, titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
 import { applyProcedure } from '@/lib/procedure';
 import { INCENTIVES, KPI_LABEL, PROCEDURE_TIERS, STATUS_THRESHOLDS } from '@/lib/rules';
@@ -119,12 +119,12 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
           <Card className="grid gap-2 px-4.5 py-4 text-[13.5px]">
             <h3 className="display text-base font-bold">Estados</h3>
             <div className="flex flex-wrap gap-2">
-              <StatusPill s="PRODUCTIVO">desde {t.procedimiento.productivo} pts</StatusPill>
-              <StatusPill s="ESTABLE">{t.procedimiento.estable} a {t.procedimiento.productivo - 0.5} pts</StatusPill>
-              <StatusPill s="CRITICO">menos de {t.procedimiento.estable} pts</StatusPill>
+              <StatusPill s="PRODUCTIVO">más de {t.procedimiento.productivo} pts</StatusPill>
+              <StatusPill s="ESTABLE">más de {t.procedimiento.estable} y hasta {t.procedimiento.productivo} pts</StatusPill>
+              <StatusPill s="CRITICO">{t.procedimiento.estable} pts o menos</StatusPill>
             </div>
             <p className="text-ink-2">
-              El documento dice &quot;Productivo mayor o igual a 7, Estable entre 4 y 6, Crítico menor a 3&quot;: no clasifica el 3 ni los puntajes entre 6 y 7. La herramienta los completa como se muestra arriba. El Excel usa otra escala ({STATUS_LABEL.PRODUCTIVO} desde {t.excel.productivo}).
+              El documento dice &quot;Productivo mayor o igual a 7, Estable entre 4 y 6, Crítico menor a 3&quot; y la leyenda del Excel &quot;mayor a 10, de 4 a 9, menor a 3&quot;; las dos dejan puntajes sin clasificar. La herramienta usa la escala corregida de arriba con las dos bases.
             </p>
           </Card>
           <Card className="grid gap-2 px-4.5 py-4 text-[13.5px]">

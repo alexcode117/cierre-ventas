@@ -8,6 +8,7 @@ import { parseFile, ParseError } from '../src/lib/parser';
 import { applyProcedure, basisDiffs } from '../src/lib/procedure';
 import { pctDiffers } from '../src/lib/awards';
 import { buildSession, type LoadedFile } from '../src/lib/load';
+import { statusOf } from '../src/lib/rules';
 
 const load = (f: string) => {
   const b = readFileSync(`public/ejemplos/${f}`);
@@ -181,5 +182,18 @@ describe("procedimiento de KPI's", () => {
     const f: LoadedFile = { name: 'x', size: b.length, hash: '', report: ago };
     expect(buildSession(f, null).cur.report.basis).toBe('procedimiento');
     expect(buildSession(f, null, 'excel').cur.report.basis).toBe('excel');
+  });
+});
+
+describe('escala de estados', () => {
+  it('Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos, en las dos bases', () => {
+    for (const basis of ['procedimiento', 'excel'] as const) {
+      expect(statusOf(12, basis)).toBe('PRODUCTIVO');
+      expect(statusOf(9.5, basis)).toBe('PRODUCTIVO');
+      expect(statusOf(9, basis)).toBe('ESTABLE');
+      expect(statusOf(3.5, basis)).toBe('ESTABLE');
+      expect(statusOf(3, basis)).toBe('CRITICO');
+      expect(statusOf(0, basis)).toBe('CRITICO');
+    }
   });
 });

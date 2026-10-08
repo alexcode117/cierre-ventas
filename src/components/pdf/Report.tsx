@@ -313,7 +313,7 @@ export default function ReportDoc({ s }: { s: Session }) {
                 <Text style={{ width: 52, textAlign: 'right', fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: STATUS_C[b.status][1] }}>{fmt(b.score, 1)}</Text>
               </View>
             )))}
-            <Text style={{ fontSize: 7.5, color: C.ink3, marginTop: 4 }}>{t('Tramos: crecimiento en ventas y cobranza, 3 pts desde 100% y 1 pt desde 90%; atención de cartera (sobre la cartera total, estimada como objetivo del Excel ÷ 0,7), 3 pts desde 70% y 1 pt desde 50%; nuevos clientes, 3 pts si cumple. Estados: Productivo desde 7, Estable desde 4, Crítico por debajo de 4. En Pruven el Excel reparte el crecimiento en 6 productos de 0,5 pts; el procedimiento mide los galones totales.')}</Text>
+            <Text style={{ fontSize: 7.5, color: C.ink3, marginTop: 4 }}>{t('Tramos: crecimiento en ventas y cobranza, 3 pts desde 100% y 1 pt desde 90%; atención de cartera (sobre la cartera total, estimada como objetivo del Excel ÷ 0,7), 3 pts desde 70% y 1 pt desde 50%; nuevos clientes, 3 pts si cumple. Estados: Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos. En Pruven el Excel reparte el crecimiento en 6 productos de 0,5 pts; el procedimiento mide los galones totales.')}</Text>
           </Section>
 
           <Section title="Tabla de incentivos" sub="% sobre la base de cálculo según el procedimiento, frente a lo que asigna RESULTADOS">

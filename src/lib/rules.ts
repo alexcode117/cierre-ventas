@@ -28,14 +28,21 @@ export const KPI_LABEL: Record<KpiKey, string> = {
 };
 
 /**
- * Estados por línea (máx. 12 pts). El procedimiento dice "Productivo mayor o igual a 7, Estable entre
- * 4 y 6, Crítico menor a 3", lo que deja sin clasificar el 3 y los puntajes entre 6 y 7; se completa
- * así: Productivo desde 7, Estable desde 4, Crítico por debajo de 4. La leyenda del Excel ("mayor a 10",
- * "de 4 a 9", "menor a 3") se completa igual: Productivo desde 10.
+ * Estados por línea (máx. 12 pts), definidos por la gerencia para las dos bases: Productivo más de 9,
+ * Estable más de 3 y hasta 9, Crítico 3 o menos. Reemplaza la escala del procedimiento ("mayor o igual a 7,
+ * entre 4 y 6, menor a 3") y la leyenda del Excel ("mayor a 10", "de 4 a 9", "menor a 3"), que dejaban
+ * puntajes sin clasificar. Los umbrales son estrictos: hay que superarlos.
  */
+const STATUS_SCALE = { productivo: 9, estable: 3 };
 export const STATUS_THRESHOLDS: Record<Basis, { productivo: number; estable: number }> = {
-  procedimiento: { productivo: 7, estable: 4 },
-  excel: { productivo: 10, estable: 4 },
+  procedimiento: STATUS_SCALE,
+  excel: STATUS_SCALE,
+};
+
+/** "Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos" */
+export const statusScaleText = (basis: Basis = 'procedimiento') => {
+  const t = STATUS_THRESHOLDS[basis];
+  return `Productivo más de ${t.productivo}, Estable más de ${t.estable} y hasta ${t.productivo}, Crítico ${t.estable} o menos`;
 };
 
 export const RULES = {
@@ -67,7 +74,7 @@ export const INCENTIVES: Record<Line, { key: 'CV' | 'CT' | 'AC' | 'ANC'; label: 
 
 export function statusOf(score: number, basis: Basis = 'excel'): Status {
   const t = STATUS_THRESHOLDS[basis];
-  return score >= t.productivo ? 'PRODUCTIVO' : score >= t.estable ? 'ESTABLE' : 'CRITICO';
+  return score > t.productivo + 1e-9 ? 'PRODUCTIVO' : score > t.estable + 1e-9 ? 'ESTABLE' : 'CRITICO';
 }
 
 export const isCobranza = (name: string) => /COBRANZA/i.test(name);
@@ -118,8 +125,7 @@ export function nextStep(block: Pick<Block, 'line'>, item: Item): { pct: number;
 }
 
 export function rulesText(basis: Basis): string {
-  const t = STATUS_THRESHOLDS[basis];
-  const estados = `Estado por línea (máx. 12 pts): Productivo desde ${t.productivo}, Estable desde ${t.estable}, Crítico por debajo de ${t.estable}.`;
+  const estados = `Estado por línea (máx. 12 pts): ${statusScaleText(basis)}.`;
   if (basis === 'procedimiento')
     return `Procedimiento de KPI's (08/01/2025): crecimiento en ventas y cobranza dan 3 pts desde el 100% y 1 pt desde el 90%; atención de cartera, 3 pts desde el 70% de la cartera y 1 pt desde el 50%; nuevos clientes, 3 pts si cumple. ${estados}`;
   return `Reglas del Excel: un indicador se cumple con el ${RULES.cumplePct}% del objetivo (cobranza con el ${RULES.cobranzaPct}%). ${estados}`;
