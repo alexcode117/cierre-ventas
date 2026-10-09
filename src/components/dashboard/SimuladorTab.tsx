@@ -89,7 +89,7 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
                 const bd = itemBand(x.it, x.pts, x.pct);
                 return (
                   <div key={x.k} className={clsx('grid grid-cols-[1fr_70px_56px] items-center gap-x-3 gap-y-1 border-t border-line-2 px-4.5 py-2 text-[13.5px] transition-colors sm:grid-cols-[minmax(130px,1.1fr)_minmax(120px,1.4fr)_84px_62px]', x.changed && 'bg-accent-soft')}>
-                    <label htmlFor={`sim-${x.k}`} className="min-w-0">{prettyItem(x.it.name)}<small className="block text-[11.5px] text-ink-3">Objetivo {show(obj)} · real {show(x.it.real ?? 0)}</small>
+                    <label htmlFor={`sim-${x.k}`} className="min-w-0">{prettyItem(x.it.name)}<small className="block text-[11.5px] text-ink-3">Objetivo {show(obj)}, real {show(x.it.real ?? 0)}</small>
                       {x.offRule && <small className="mt-0.5 block text-[11.5px] font-medium text-warn-ink">{proc ? `El Excel le da ${fmt(x.it.excelPts, 1)} pts; el procedimiento, ${fmt(x.it.pts, 1)}` : `El Excel le da ${fmt(x.it.pts, 1)} pts con ${fmt(x.it.pct, 1)}% (la regla pide ${thresholdOf(x.it)}%)`}</small>}
                       {x.it.kpi === 'PROD' && <small className="mt-0.5 block text-[11.5px] text-ink-3">Informativo: el procedimiento mide Pruven por galones totales</small>}</label>
                     <input id={`sim-${x.k}`} type="range" min={0} max={max} step={step} value={x.real} onChange={(e) => setSim({ ...sim, [x.k]: +e.target.value })}

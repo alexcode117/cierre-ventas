@@ -47,7 +47,7 @@ export default function MetasTab({ session }: { session: Session }) {
       <motion.section variants={fadeUp} className="grid gap-3">
         <div className="grid gap-1">
           <span className="eyebrow">Para la reunión del próximo cierre</span>
-          <h2 className="display text-2xl font-bold" style={{ fontStretch: '85%' }}>{titleCase(M.title)}</h2>
+          <h2 className="display text-2xl font-bold">{titleCase(M.title)}</h2>
           <p className="text-[14px] text-ink-2">Objetivos cargados en la hoja METAS, comparados con lo que cada vendedor logró en {month}.</p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -77,7 +77,7 @@ export default function MetasTab({ session }: { session: Session }) {
               const g = Math.max(top.gS ?? -1e9, top.gP ?? -1e9);
               return (
                 <>
-                  <div className="display text-[22px] leading-tight font-bold" style={{ fontStretch: '85%' }}>{top.nombre}</div>
+                  <div className="display text-[22px] leading-tight font-bold">{top.nombre}</div>
                   <span className={clsx('text-[13px] font-medium', growthCls(g))}>{signed(g)}% en {g === top.gP ? 'Pruven' : 'sacos'} sobre lo vendido en {month}</span>
                 </>
               );
@@ -92,7 +92,7 @@ export default function MetasTab({ session }: { session: Session }) {
           <Card className="overflow-x-auto">
             <table className="w-full border-collapse text-[13.5px]">
               <thead>
-                <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+                <tr className="border-b border-line th">
                   {['Vendedor', `Sacos ${month}`, 'Meta sacos', 'Crecimiento', `Pruven ${month}`, 'Meta Pruven', 'Crecimiento', 'Riesgo'].map((h, i) => (
                     <th key={i} className={clsx('px-3 py-2.5 font-medium whitespace-nowrap', i ? 'text-right' : 'pl-4.5 text-left')}>{h}</th>
                   ))}
@@ -119,11 +119,11 @@ export default function MetasTab({ session }: { session: Session }) {
       )}
 
       <motion.section variants={fadeUp} className="grid gap-3">
-        <SectionHead title="Detalle por producto" sub={`Meta de cada columna de la hoja METAS · debajo, lo logrado en ${month} y el crecimiento que pide la meta`} />
+        <SectionHead title="Detalle por producto" sub={`Meta de cada columna de la hoja METAS. Debajo, lo logrado en ${month} y el crecimiento que pide la meta.`} />
         <Card className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
-              <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+              <tr className="border-b border-line th">
                 <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Vendedor</th>
                 {M.cols.map((c, i) => <th key={i} className="px-3 py-2.5 text-right font-medium whitespace-nowrap">{titleCase(c)}</th>)}
               </tr>
@@ -143,7 +143,7 @@ export default function MetasTab({ session }: { session: Session }) {
                           <div className={clsx(meta == null && 'text-ink-3')}>{meta == null ? '—' : fmt(meta)}</div>
                           {real != null && meta != null && (
                             <div className="text-[11.5px] font-normal text-ink-3">
-                              {fmt(real, 1)} · <span className={clsx('font-medium', growthCls(g))}>{g == null ? '—' : `${signed(g)}%`}</span>
+                              {fmt(real, 1)}, <span className={clsx('font-medium', growthCls(g))}>{g == null ? '—' : `${signed(g)}%`}</span>
                             </div>
                           )}
                         </td>
@@ -156,7 +156,7 @@ export default function MetasTab({ session }: { session: Session }) {
           </table>
         </Card>
         <p className="text-[12.5px] text-ink-3">
-          Verde: la meta pide crecer 15% o menos (o menos que este mes) · ámbar: 15% a 40% · rojo: más de 40%. Los clientes nuevos se muestran sin comparación porque la hoja METAS no indica a qué línea corresponden.
+          Verde: la meta pide crecer 15% o menos (o menos que este mes). Ámbar: de 15% a 40%. Rojo: más de 40%. Los clientes nuevos se muestran sin comparación porque la hoja METAS no indica a qué línea corresponden.
         </p>
       </motion.section>
 

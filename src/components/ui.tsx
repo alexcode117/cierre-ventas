@@ -7,7 +7,7 @@ import { band, fmt, STATUS_LABEL } from '@/lib/format';
 import type { Status } from '@/lib/types';
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={clsx('min-w-0 rounded-xl border border-line bg-panel', className)}>{children}</div>;
+  return <div className={clsx('min-w-0 rounded-lg border border-line bg-panel', className)}>{children}</div>;
 }
 
 export function Button({ variant = 'ghost', className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' }) {
@@ -15,8 +15,8 @@ export function Button({ variant = 'ghost', className, ...p }: ButtonHTMLAttribu
     <button
       {...p}
       className={clsx(
-        'inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:cursor-default disabled:opacity-50',
-        variant === 'primary' ? 'bg-accent text-on-accent hover:brightness-110' : 'border border-line bg-panel text-ink hover:border-ink-3',
+        'inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:cursor-default disabled:opacity-45',
+        variant === 'primary' ? 'bg-accent text-on-accent hover:opacity-90' : 'border border-line bg-panel text-ink hover:border-ink-2',
         className,
       )}
     />
@@ -32,8 +32,8 @@ const RISK_CLS = { bajo: STATUS_CLS.PRODUCTIVO, medio: STATUS_CLS.ESTABLE, alto:
 
 export function Pill({ className, children }: { className: string; children: ReactNode }) {
   return (
-    <span className={clsx('inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-1.5 font-mono text-[11px] font-medium tracking-wide whitespace-nowrap', className)}>
-      <span className="size-[7px] rounded-full bg-current" aria-hidden />
+    <span className={clsx('inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-2 text-[12px] font-semibold whitespace-nowrap', className)}>
+      <span className="size-[6px] rounded-full bg-current" aria-hidden />
       {children}
     </span>
   );
@@ -43,10 +43,10 @@ export const RiskPill = ({ r }: { r: 'alto' | 'medio' | 'bajo' }) => <Pill class
 
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="group" aria-label={label} className="relative inline-flex flex-wrap gap-0.5 rounded-lg bg-line-2 p-[3px]">
+    <div role="group" aria-label={label} className="relative inline-flex flex-wrap gap-0.5 rounded-md border border-line bg-panel-2 p-[3px]">
       {options.map(([k, l]) => (
-        <button key={k} aria-pressed={value === k} onClick={() => onChange(k)} className={clsx('relative rounded-md px-3 py-1 text-[12.5px] font-semibold transition-colors', value === k ? 'text-ink' : 'text-ink-2 hover:text-ink')}>
-          {value === k && <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-md bg-panel shadow-sm" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
+        <button key={k} aria-pressed={value === k} onClick={() => onChange(k)} className={clsx('relative rounded-[5px] px-3 py-1 text-[12.5px] font-semibold transition-colors', value === k ? 'text-on-accent' : 'text-ink-2 hover:text-ink')}>
+          {value === k && <motion.span layoutId={`seg-${label}`} className="absolute inset-0 rounded-[5px] bg-accent" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
           <span className="relative">{l}</span>
         </button>
       ))}
@@ -86,7 +86,7 @@ export function Delta({ cur, prev, suffix = '', digits = 0, pct = false, label }
   const d = pct ? (prev ? ((cur - prev) / prev) * 100 : null) : cur - prev;
   if (d == null) return null;
   return (
-    <span className={clsx('font-mono text-xs font-medium', d >= 0 ? 'text-good-ink' : 'text-crit-ink')}>
+    <span className={clsx('text-[12.5px] font-semibold', d >= 0 ? 'text-good-ink' : 'text-crit-ink')}>
       {d >= 0 ? '▲' : '▼'} {fmt(Math.abs(d), digits)}{pct ? '%' : suffix}{label ? ` ${label}` : ''}
     </span>
   );
@@ -96,7 +96,7 @@ export function SectionHead({ title, sub, children }: { title: string; sub?: str
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
-        <h2 className="display text-xl font-bold" style={{ fontStretch: '85%' }}>{title}</h2>
+        <h2 className="display text-[26px] leading-tight font-extrabold">{title}</h2>
         {sub && <p className="text-[13.5px] text-ink-2">{sub}</p>}
       </div>
       {children}
@@ -104,8 +104,7 @@ export function SectionHead({ title, sub, children }: { title: string; sub?: str
   );
 }
 
-export const fadeUp = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const } },
-};
-export const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+// Las secciones ya no entran animadas una por una: el único momento animado al cargar es la cinta de metas
+// del Resumen. Se mantienen las variantes vacías para no tocar la estructura de cada pestaña.
+export const fadeUp = { hidden: {}, show: {} };
+export const stagger = { hidden: {}, show: {} };

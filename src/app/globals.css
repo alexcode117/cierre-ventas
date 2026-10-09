@@ -1,63 +1,73 @@
 @import "tailwindcss";
 
-/* Paleta neutra con acento azul acero. Para usar colores corporativos, cambie solo este bloque. */
+/*
+ * Paleta "obra": gris cemento de fondo, grafito para el texto y las acciones, y los colores de cada línea
+ * (azul Pegutil, naranja Pruven) como identidad. Para usar colores corporativos, cambie solo este bloque.
+ */
 :root {
-  --bg: #f3f4f2;
-  --panel: #ffffff;
-  --panel-2: #f8f9f7;
-  --ink: #16181a;
-  --ink-2: #4e5458;
-  --ink-3: #737a7e;
-  --line: #dfe2df;
-  --line-2: #eceeec;
-  --accent: #1d5fae;
-  --accent-soft: #e3ecf7;
-  --on-accent: #ffffff;
-  --peg: #2a78d6;
-  --pru: #eb6834;
-  --s3: #1baf7a;
-  --s4: #4a3aa7;
-  --s5: #e87ba4;
-  --prev: #b9bdb9;
-  --good: #0ca30c;
-  --good-bg: #e2f3e2;
-  --good-ink: #0b6b0b;
-  --warn: #fab219;
-  --warn-bg: #fdf1d6;
-  --warn-ink: #8a5a00;
-  --crit: #d03b3b;
-  --crit-bg: #f9e1e1;
-  --crit-ink: #a32626;
-  --track: #e8eae7;
+  --bg: #e3e4e0;
+  --panel: #f7f7f4;
+  --panel-2: #eeefeb;
+  --ink: #1d2328;
+  --ink-2: #4a535a;
+  --ink-3: #6c757b;
+  --line: #cdd0cb;
+  --line-2: #e2e4df;
+  --accent: #1d2328;
+  --accent-soft: #dfe7f3;
+  --on-accent: #f7f7f4;
+  --focus: #1f5fbf;
+  --peg: #1f5fbf;
+  --pru: #e2611f;
+  --s3: #2e8a62;
+  --s4: #5b4bb0;
+  --s5: #c9577f;
+  --prev: #a9aea8;
+  --good: #2e8a4f;
+  --good-bg: #dcefe0;
+  --good-ink: #1d6337;
+  --warn: #d3920e;
+  --warn-bg: #f7ebcc;
+  --warn-ink: #7f5700;
+  --crit: #c4392f;
+  --crit-bg: #f6dcd8;
+  --crit-ink: #9c2a22;
+  --track: #d6d8d3;
+  --grout: #d3d5d0;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121415;
-    --panel: #1b1e20;
-    --panel-2: #202426;
-    --ink: #f2f3f2;
-    --ink-2: #b9bec1;
-    --ink-3: #8f969a;
-    --line: #2d3235;
-    --line-2: #24282a;
-    --accent: #6aa5ec;
+    --bg: #15181b;
+    --panel: #1d2125;
+    --panel-2: #23282c;
+    --ink: #eceeea;
+    --ink-2: #b4bbbf;
+    --ink-3: #8d959a;
+    --line: #30363b;
+    --line-2: #262b2f;
+    --accent: #eceeea;
     --accent-soft: #1d2b3c;
-    --on-accent: #0d1a2a;
-    --peg: #3987e5;
-    --pru: #d95926;
-    --s3: #199e70;
+    --on-accent: #15181b;
+    --focus: #6fa6ee;
+    --peg: #4a8be0;
+    --pru: #ec7a3e;
+    --s3: #3fae80;
     --s4: #9085e9;
     --s5: #d55181;
-    --prev: #4a5054;
-    --good-bg: #16301a;
-    --good-ink: #7fd67f;
+    --prev: #50575c;
+    --good: #45b06a;
+    --good-bg: #17301f;
+    --good-ink: #86d69c;
+    --warn: #e2a42a;
     --warn-bg: #352a10;
-    --warn-ink: #f5c45a;
-    --crit-bg: #3a1c1c;
-    --crit-ink: #f19a9a;
-    --track: #2a2f31;
+    --warn-ink: #f2c662;
+    --crit: #e05a4f;
+    --crit-bg: #3a1d1b;
+    --crit-ink: #f3a39b;
+    --track: #2b3135;
+    --grout: #121517;
     color-scheme: dark;
   }
 }
@@ -74,9 +84,11 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus);
   --color-peg: var(--peg);
   --color-pru: var(--pru);
   --color-track: var(--track);
+  --color-grout: var(--grout);
   --color-good: var(--good);
   --color-good-bg: var(--good-bg);
   --color-good-ink: var(--good-ink);
@@ -87,8 +99,7 @@
   --color-crit-bg: var(--crit-bg);
   --color-crit-ink: var(--crit-ink);
   --font-sans: var(--font-archivo), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-archivo), "Arial Narrow", system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, Consolas, monospace;
+  --font-display: var(--font-shoulders), "Arial Narrow", system-ui, sans-serif;
 }
 
 body {
@@ -100,18 +111,28 @@ body {
 
 h1, h2, h3, h4 { text-wrap: balance; }
 
+@layer components {
+/* Etiqueta pequeña sobre un dato: en minúscula normal, sin espaciado ni monoespaciada. */
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
-.display { font-family: var(--font-display); font-stretch: 80%; }
+/* Títulos y cifras. */
+.display { font-family: var(--font-display); letter-spacing: -0.005em; }
+.stencil { font-family: var(--font-shoulders-stencil), var(--font-shoulders), "Arial Narrow", sans-serif; font-weight: 800; letter-spacing: 0.01em; }
 
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Encabezados de tabla. */
+.th { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+}
 
-input[type="range"] { accent-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-dialog::backdrop { background: rgb(10 12 14 / 0.45); }
+input[type="range"] { accent-color: var(--ink); }
+
+dialog::backdrop { background: rgb(12 15 18 / 0.5); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

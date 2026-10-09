@@ -29,7 +29,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
     <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-7">
       <motion.section variants={fadeUp} className="grid gap-2">
         <span className="eyebrow">Norma de referencia</span>
-        <h2 className="display text-2xl font-bold" style={{ fontStretch: '85%' }}>Procedimiento para cálculo de KPI&apos;s e incentivos para ventas</h2>
+        <h2 className="display text-2xl font-bold">Procedimiento para cálculo de KPI&apos;s e incentivos para ventas</h2>
         <p className="max-w-[75ch] text-[14px] text-ink-2">
           Elaborado el 08/01/2025 para Pegamentos Útiles de Venezuela (Pegutil) y Productos Útiles de Venezuela (Pruven). Mide cuatro indicadores por empresa con tramos de 3, 1 y 0 puntos; su suma define el estado del vendedor.
         </p>
@@ -46,8 +46,8 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
         <Card className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
-              <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
-                <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Vendedor · línea</th>
+              <tr className="border-b border-line th">
+                <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Vendedor y línea</th>
                 {KPIS.map((k) => <th key={k} className="px-2 text-center font-medium">{KPI_LABEL[k]}</th>)}
                 <th className="px-3 text-right font-medium">Excel</th>
                 <th className="px-3 text-right font-medium">Procedimiento</th>
@@ -58,7 +58,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
                 const changed = b.excelScore != null && Math.abs(b.excelScore - b.score) > 1e-9;
                 return (
                   <tr key={s.sheet + b.line} className={clsx('border-b border-line-2 last:border-b-0', changed && 'bg-warn-bg/40')}>
-                    <td className="py-2 pr-3 pl-4.5 whitespace-nowrap"><b className="font-semibold">{s.display}</b> <span className="text-ink-2">· {b.line}</span></td>
+                    <td className="py-2 pr-3 pl-4.5 whitespace-nowrap"><b className="font-semibold">{s.display}</b> <span className="text-ink-2">{b.line}</span></td>
                     {KPIS.map((k) => {
                       const it = b.items.find((i) => i.kpi === k);
                       if (!it) return <td key={k} className="px-2 text-center text-ink-3">—</td>;
@@ -90,7 +90,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
         <Card className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
-              <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+              <tr className="border-b border-line th">
                 <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Indicador</th>
                 <th className="px-3 text-left font-medium">Fórmula</th>
                 <th className="px-3 text-center font-medium">3 pts</th>
@@ -150,7 +150,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
                 <h3 className="display px-4.5 pt-3.5 text-base font-bold">{line === 'Pegutil' ? 'Pegamentos Útiles (Pegutil)' : 'Productos Útiles (Pruven)'}</h3>
                 <table className="w-full border-collapse text-[13.5px]">
                   <thead>
-                    <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+                    <tr className="border-b border-line th">
                       <th className="py-2 pr-3 pl-4.5 text-left font-medium">Incentivo</th>
                       <th className="px-2 text-right font-medium">Oficial</th>
                       <th className="px-2 text-right font-medium">Excel</th>

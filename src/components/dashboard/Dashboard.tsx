@@ -31,7 +31,6 @@ export default function Dashboard({ session, onReset, onBasis }: { session: Sess
   const [simSeller, setSimSeller] = useState(0);
   const [pdfState, setPdfState] = useState<'idle' | 'busy' | 'error'>('idle');
   const { cur, prev, comparison } = session;
-  const month = cur.report.month ? titleCase(cur.report.month) : 'del mes';
 
   useEffect(() => {
     const h = location.hash.slice(1);
@@ -54,39 +53,43 @@ export default function Dashboard({ session, onReset, onBasis }: { session: Sess
     }
   }
 
+  const month = cur.report.month ? titleCase(cur.report.month) : 'Cierre del mes';
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mx-auto grid max-w-[1200px] gap-5 px-4 pt-5 pb-16 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="grid min-w-0 gap-1.5">
-          <button onClick={onReset} className="inline-flex items-center gap-1 justify-self-start text-[13px] text-ink-2 hover:text-ink">
-            <ArrowLeft size={14} aria-hidden /> Cargar otros archivos
-          </button>
-          <h1 className="display text-[clamp(26px,4vw,38px)] leading-[1.05] font-extrabold">Resultados {month}</h1>
-          <p className="text-[13px] text-ink-2">
-            <b className="font-semibold text-ink">{cur.name}</b>
-            {prev && <> · comparado con <b className="font-semibold text-ink">{titleCase(comparison?.prevMonth ?? prev.name)}</b></>}
-            {' '}· {cur.report.sellers.length} vendedores con hoja
-          </p>
-        </div>
-        <div className="grid justify-items-end gap-2">
-          <div className="flex items-center gap-2" title="Base para calcular puntos y estados">
-            <span className="text-[12.5px] text-ink-2">Puntos según</span>
-            <Segmented label="Base de cálculo" value={session.basis} onChange={onBasis} options={[['procedimiento', 'Procedimiento'], ['excel', 'Excel']]} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mx-auto grid max-w-[1200px] gap-6 px-4 pt-5 pb-16 sm:px-6">
+      <header className="grid gap-4">
+        <button onClick={onReset} className="inline-flex items-center gap-1 justify-self-start text-[13px] font-medium text-ink-2 hover:text-ink">
+          <ArrowLeft size={14} aria-hidden /> Cargar otros archivos
+        </button>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+          <div className="grid min-w-0 gap-1">
+            <h1 className="stencil text-[clamp(44px,8vw,84px)] leading-[0.86] text-ink uppercase">{month}</h1>
+            <p className="text-[14px] text-ink-2">
+              Cierre de ventas de <b className="font-semibold text-ink">{cur.name}</b>
+              {prev && <>, comparado con <b className="font-semibold text-ink">{titleCase(comparison?.prevMonth ?? prev.name)}</b></>}.{' '}
+              {cur.report.sellers.length} vendedores con hoja.
+            </p>
           </div>
-          <Button variant="primary" onClick={downloadPdf} disabled={pdfState === 'busy'}>
-            {pdfState === 'busy' ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <FileDown size={16} aria-hidden />}
-            {pdfState === 'busy' ? 'Generando informe…' : 'Descargar informe PDF'}
-          </Button>
-          {pdfState === 'error' && <span role="alert" className="text-[12.5px] text-crit-ink">No se pudo generar el PDF. Intente de nuevo.</span>}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2" title="Base para calcular puntos y estados">
+              <span className="text-[13px] font-medium text-ink-2">Puntos según</span>
+              <Segmented label="Base de cálculo" value={session.basis} onChange={onBasis} options={[['procedimiento', 'Procedimiento'], ['excel', 'Excel']]} />
+            </div>
+            <Button variant="primary" onClick={downloadPdf} disabled={pdfState === 'busy'}>
+              {pdfState === 'busy' ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <FileDown size={16} aria-hidden />}
+              {pdfState === 'busy' ? 'Generando informe…' : 'Descargar informe PDF'}
+            </Button>
+          </div>
         </div>
+        {pdfState === 'error' && <p role="alert" className="text-[13px] text-crit-ink">No se pudo generar el PDF. Intente de nuevo.</p>}
       </header>
 
-      <nav role="tablist" aria-label="Secciones" className="sticky top-0 z-10 -mx-1 flex overflow-x-auto border-b border-line bg-bg px-1 [scrollbar-width:none]">
+      <nav role="tablist" aria-label="Secciones" className="sticky top-0 z-10 -mx-4 flex overflow-x-auto border-y border-line bg-bg/90 px-3 backdrop-blur-md [scrollbar-width:none] sm:-mx-6 sm:px-5">
         {TABS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => go(k)}
-            className={clsx('relative px-3.5 pt-3 pb-2.5 text-[14px] font-semibold whitespace-nowrap transition-colors', tab === k ? 'text-ink' : 'text-ink-2 hover:text-ink')}>
+            className={clsx('relative px-3.5 pt-3 pb-3 text-[14.5px] font-semibold whitespace-nowrap transition-colors', tab === k ? 'text-ink' : 'text-ink-3 hover:text-ink')}>
             {l}
-            {tab === k && <motion.span layoutId="tab-underline" className="absolute inset-x-2 -bottom-px h-[2.5px] rounded bg-accent" />}
+            {tab === k && <motion.span layoutId="tab-underline" className="absolute inset-x-2 -bottom-px h-[3px] bg-ink" transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }} />}
           </button>
         ))}
       </nav>
@@ -102,7 +105,7 @@ export default function Dashboard({ session, onReset, onBasis }: { session: Sess
         </motion.section>
       </AnimatePresence>
 
-      <p className="text-[12.5px] text-ink-3">
+      <p className="max-w-[90ch] border-t border-line pt-4 text-[12.5px] leading-relaxed text-ink-3">
         {rulesText(session.basis)}{' '}
         {session.basis === 'procedimiento' ? 'Colores de los indicadores: verde 3 pts, ámbar 1 pt, rojo 0 pts.' : 'Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.'}
       </p>

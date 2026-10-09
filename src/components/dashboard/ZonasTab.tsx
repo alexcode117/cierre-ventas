@@ -49,9 +49,9 @@ export default function ZonasTab({ session }: { session: Session }) {
       <section className="grid gap-3">
         <SectionHead title="Participación en sacos vendidos" sub="Qué tan concentrado está el volumen del equipo" />
         <Card className="grid gap-3 px-4.5 py-4">
-          <div className="flex h-8 gap-0.5 overflow-hidden rounded-md" role="img" aria-label="Participación por zona">
+          <div className="flex h-10 gap-[3px] overflow-hidden rounded-md bg-grout p-[3px]" role="img" aria-label="Participación por zona">
             {a.share.map((s, i) => (
-              <motion.i key={s.zona} title={`${s.zona}: ${fmt(s.v)} sacos (${fmt(s.p, 1)}%)`} className="block h-full" style={{ background: SHARE_COLORS[i % 5] }}
+              <motion.i key={s.zona} title={`${s.zona}: ${fmt(s.v)} sacos (${fmt(s.p, 1)}%)`} className="block h-full rounded-[3px]" style={{ background: SHARE_COLORS[i % 5] }}
                 initial={{ width: 0 }} animate={{ width: `${s.p}%` }} transition={{ duration: 0.8, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }} />
             ))}
           </div>
@@ -69,13 +69,13 @@ export default function ZonasTab({ session }: { session: Session }) {
             <h3 className="display text-base font-bold">Ventas por zona contra meta</h3>
             <Segmented label="Unidad" value={metric} onChange={setMetric} options={[['sacos', 'Sacos'], ['galones', 'Galones']]} />
           </div>
-          <p className="text-[12.5px] text-ink-3">Barra: vendido según RESULTADOS · marca: meta individual de la hoja del vendedor{prev ? ` · gris: ${prevLabel?.toLowerCase()}` : ''}. Si la hoja del vendedor reporta otra cifra, aparece en el detalle de la barra.</p>
+          <p className="text-[12.5px] text-ink-3">Barra: vendido según RESULTADOS. Marca: meta individual de la hoja del vendedor.{prev ? ` Gris: ${prevLabel?.toLowerCase()}.` : ''} Si la hoja del vendedor reporta otra cifra, aparece en el detalle de la barra.</p>
           <TargetBars rows={rows} color={metric === 'sacos' ? 'peg' : 'pru'} unit={metric} prevLabel={prevLabel} />
         </Card>
         {pl.length > 0 && (
           <Card className="grid min-w-0 gap-2 px-4 py-4">
             <h3 className="display text-base font-bold">Línea Pruven por producto</h3>
-            <p className="text-[12.5px] text-ink-3">Suma de vendedores con hoja · % de la meta del producto · línea punteada: 100%</p>
+            <p className="text-[12.5px] text-ink-3">Suma de los vendedores con hoja, en % de la meta del producto. La línea punteada marca el 100%.</p>
             <RefBars color="pru" label="Cumplimiento por producto Pruven" refValue={100} refLabel="Meta" suffix="%"
               rows={pl.map((x) => ({ name: x.k, value: +x.p.toFixed(1), tip: `<b>${x.k}</b><br/>Real ${fmt(x.real, 1)} de ${fmt(x.obj)}<br/>${x.by.join(' · ')}` }))} />
           </Card>
@@ -88,7 +88,7 @@ export default function ZonasTab({ session }: { session: Session }) {
           <Card className="overflow-x-auto">
             <table className="w-full border-collapse text-[13.5px]">
               <thead>
-                <tr className="border-b border-line font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+                <tr className="border-b border-line th">
                   <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Criterio</th><th className="px-3 text-left font-medium">Línea</th><th className="px-3 text-left font-medium">Ejecutivo</th><th className="px-3 text-right font-medium">% sobre ventas</th><th className="px-3 text-left font-medium">Verificación</th>
                 </tr>
               </thead>

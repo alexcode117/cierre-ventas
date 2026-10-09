@@ -36,7 +36,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
   return (
     <div className="grid gap-7">
       <section className="grid gap-3">
-        <SectionHead title="Ranking de vendedores" sub="Ordenado por puntaje total (Pegutil + Pruven, máx. 24) · clic para resaltar en el mapa">
+        <SectionHead title="Ranking de vendedores" sub="Ordenado por puntaje total (Pegutil + Pruven, máx. 24). Haga clic en una tarjeta para resaltarla en el mapa.">
           <Segmented label="Línea" value={line} onChange={setLine} options={[['all', 'Ambas líneas'], ['Pegutil', 'Pegutil'], ['Pruven', 'Pruven']]} />
         </SectionHead>
         <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3">
@@ -48,20 +48,23 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
             const gp = s.galones.meta && gal != null ? (gal / s.galones.meta) * 100 : null;
             const cd = c?.sellers.get(s.sheet);
             return (
-              <motion.article key={s.sheet} variants={fadeUp} whileHover={{ y: -2 }} onClick={() => setFocus(focus === s.sheet ? null : s.sheet)}
+              <motion.article key={s.sheet} variants={fadeUp} onClick={() => setFocus(focus === s.sheet ? null : s.sheet)}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setFocus(focus === s.sheet ? null : s.sheet))}
                 tabIndex={0} aria-pressed={focus === s.sheet}
-                className={clsx('relative grid cursor-pointer content-start gap-3.5 overflow-hidden rounded-xl border bg-panel py-4 pr-4 pl-5 transition-colors',
-                  focus === s.sheet ? 'border-accent ring-1 ring-accent' : 'border-line hover:border-ink-3')}>
-                <span className={clsx('absolute inset-y-0 left-0 w-1', s.status === 'PRODUCTIVO' ? 'bg-good' : s.status === 'ESTABLE' ? 'bg-warn' : 'bg-crit')} aria-hidden />
+                className={clsx('relative grid cursor-pointer content-start gap-3.5 overflow-hidden rounded-lg border bg-panel px-4.5 pt-5 pb-4 transition-colors',
+                  focus === s.sheet ? 'border-ink ring-2 ring-ink' : 'border-line hover:border-ink-3')}>
+                <span className={clsx('absolute inset-x-0 top-0 h-1.5', s.status === 'PRODUCTIVO' ? 'bg-good' : s.status === 'ESTABLE' ? 'bg-warn' : 'bg-crit')} aria-hidden />
                 <div className="flex items-start justify-between gap-2.5">
-                  <div className="min-w-0">
-                    <div className="font-mono text-xs text-ink-3">#{i + 1} · {s.zona}</div>
-                    <h3 className="display text-[19px] leading-tight font-bold" style={{ fontStretch: '85%' }}>{s.display}</h3>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="display text-[40px] leading-[0.8] font-extrabold text-ink-3" aria-label={`Puesto ${i + 1}`}>{i + 1}</span>
+                    <div className="min-w-0">
+                      <h3 className="display text-[22px] leading-[1.05] font-extrabold">{s.display}</h3>
+                      <div className="text-[12.5px] text-ink-3">{s.zona}</div>
+                    </div>
                   </div>
                   <div className="grid justify-items-end gap-1">
                     <StatusPill s={s.status} />
-                    {cd && cd.prevStatus !== s.status && <span className="font-mono text-[10.5px] text-ink-3">antes {STATUS_LABEL[cd.prevStatus].toLowerCase()}</span>}
+                    {cd && cd.prevStatus !== s.status && <span className="text-[11.5px] text-ink-3">antes {STATUS_LABEL[cd.prevStatus].toLowerCase()}</span>}
                   </div>
                 </div>
                 <div className="grid gap-2.5">
@@ -92,7 +95,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
       </section>
 
       <section className="grid gap-3">
-        <SectionHead title="Mapa de cumplimiento" sub="Cada celda es un indicador de un vendedor · pase el cursor para ver objetivo y real">
+        <SectionHead title="Mapa de cumplimiento" sub="Cada azulejo es un indicador de un vendedor. Pase el cursor para ver objetivo y real.">
           <Segmented label="Mostrar" value={mode} onChange={setMode} options={modes} />
         </SectionHead>
         <Card>
@@ -114,7 +117,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                   if (!ref) return null;
                   return [
                     <tr key={ln + '-h'}>
-                      <th colSpan={d.sellers.length + 1} className="px-4 pt-4 pb-1 text-left font-mono text-[11px] font-medium tracking-[.08em] text-ink-3 uppercase">
+                      <th colSpan={d.sellers.length + 1} className="px-4 pt-5 pb-1.5 text-left text-[13px] font-bold text-ink">
                         <i className="mr-1.5 inline-block size-[9px] rounded-sm" style={{ background: lineColor(ln) }} />{ln}
                       </th>
                     </tr>,
@@ -125,7 +128,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                           const b = s.blocks.find((x) => x.line === ln);
                           const x = b && (b.items.find((y) => y.name === it.name) ?? b.items[k]);
                           const dim = focus && focus !== s.sheet;
-                          if (!b || !x) return <td key={s.sheet}><div className="m-[3px] text-center text-ink-3">—</div></td>;
+                          if (!b || !x) return <td key={s.sheet}><div className="m-[2px] text-center text-ink-3">—</div></td>;
                           const bd = itemBand(x);
                           const p = prevItem(c, s.sheet, ln, x.name);
                           let txt: React.ReactNode;
@@ -142,7 +145,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                           return (
                             <td key={s.sheet} className={clsx('transition-opacity', dim && 'opacity-30')}>
                               <div title={`${s.display} · ${prettyItem(x.name)}\nObjetivo ${fmt(x.obj, 2)} · Real ${fmt(x.real, 2)} (${fmt(x.pct, 1)}%)\nCumple: ${x.ok ? 'Sí' : 'No'} · ${fmt(x.pts, 1)} pts${p ? `\nMes anterior: ${fmt(p.real, 2)} (${fmt(p.pct, 1)}%)` : ''}`}
-                                className={clsx('m-[3px] flex min-w-[92px] items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[13px] font-semibold', cls)}>{txt}</div>
+                                className={clsx('m-[2px] flex min-w-[92px] items-center justify-center gap-1 rounded-[3px] px-2 py-2 text-[13px] font-semibold', cls)}>{txt}</div>
                             </td>
                           );
                         })}
@@ -154,7 +157,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                         const b = s.blocks.find((x) => x.line === ln);
                         return (
                           <td key={s.sheet} className={clsx('transition-opacity', focus && focus !== s.sheet && 'opacity-30')}>
-                            <div className={clsx('m-[3px] rounded-md px-2 py-1.5 text-center font-bold', b && (b.status === 'PRODUCTIVO' ? BAND_CLS.good : b.status === 'ESTABLE' ? BAND_CLS.warn : BAND_CLS.crit))}>{b ? `${fmt(b.score, 1)} / 12` : '—'}</div>
+                            <div className={clsx('m-[2px] rounded-[3px] px-2 py-2 text-center font-bold', b && (b.status === 'PRODUCTIVO' ? BAND_CLS.good : b.status === 'ESTABLE' ? BAND_CLS.warn : BAND_CLS.crit))}>{b ? `${fmt(b.score, 1)} / 12` : '—'}</div>
                           </td>
                         );
                       })}
@@ -169,7 +172,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
             <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-warn-bg ring-1 ring-warn" />{session.basis === 'procedimiento' ? '1 pt' : '80 a 99%'}</span>
             <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-crit-bg ring-1 ring-crit" />{session.basis === 'procedimiento' ? '0 pts' : 'menos de 80%'}</span>
             {session.basis === 'procedimiento' && <span>Atención de cartera: % de la cartera total (objetivo del Excel ÷ 0,7). Ventas por producto: informativas, sin puntos.</span>}
-            {mode === 'delta' && <span>Verde: mejoró · rojo: empeoró (puntos porcentuales vs mes anterior)</span>}
+            {mode === 'delta' && <span>Verde: mejoró. Rojo: empeoró (puntos porcentuales frente al mes anterior).</span>}
           </div>
         </Card>
       </section>
@@ -183,7 +186,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                 <li key={a.text} className="grid grid-cols-[22px_1fr] items-start gap-2.5 border-b border-line-2 px-4.5 py-2.5 text-[14px] last:border-b-0">
                   {a.level === 'crit' ? <AlertOctagon size={18} className="mt-0.5 text-crit" aria-hidden /> : a.level === 'warn' ? <AlertTriangle size={18} className="mt-0.5 text-warn" aria-hidden /> : <Info size={18} className="mt-0.5 text-ink-3" aria-hidden />}
                   <div>
-                    <span className={clsx('mr-1.5 font-mono text-[10.5px] tracking-wider uppercase', a.level === 'crit' ? 'text-crit-ink' : a.level === 'warn' ? 'text-warn-ink' : 'text-ink-3')}>{a.level === 'crit' ? 'Crítico' : a.level === 'warn' ? 'Revisar' : 'Nota'}</span>
+                    <span className={clsx('mr-1.5 text-[12px] font-bold', a.level === 'crit' ? 'text-crit-ink' : a.level === 'warn' ? 'text-warn-ink' : 'text-ink-3')}>{a.level === 'crit' ? 'Crítico' : a.level === 'warn' ? 'Revisar' : 'Nota'}</span>
                     {a.text}
                   </div>
                 </li>
@@ -194,7 +197,7 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
       </section>
 
       <dialog ref={dlg} onClose={() => setDetail(null)} onClick={(e) => e.target === dlg.current && dlg.current?.close()}
-        className="m-auto max-h-[calc(100dvh-48px)] w-[min(720px,calc(100vw-32px))] rounded-xl border border-line bg-panel p-0 text-ink">
+        className="m-auto max-h-[calc(100dvh-48px)] w-[min(720px,calc(100vw-32px))] rounded-lg border border-line bg-panel p-0 text-ink shadow-2xl">
         {detail != null && <SellerDetail s={d.sellers[detail]} session={session} onClose={() => dlg.current?.close()} onSimulate={() => { dlg.current?.close(); onSimulate(detail); }} />}
       </dialog>
     </div>
@@ -205,8 +208,8 @@ function MiniStat({ label, value, pct, meta, prev, other }: { label: string; val
   const differs = other != null && value != null && Math.abs(other - value) > 0.005;
   return (
     <div className="grid gap-px">
-      <span className="eyebrow text-[10.5px]">{label}</span>
-      <b className="display text-lg" style={{ fontStretch: '85%' }}>{fmt(value)}</b>
+      <span className="eyebrow text-[12px]">{label}</span>
+      <b className="display text-[26px] leading-none font-extrabold">{fmt(value)}</b>
       <span className={clsx('text-[12.5px]', (pct ?? 0) >= 100 ? 'text-good-ink' : 'text-crit-ink')}>{fmt(pct)}% de {fmt(meta)}</span>
       {differs && (
         <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-warn-ink" title="La hoja del vendedor y RESULTADOS no coinciden. Revise la pestaña Vendedores › Revisión del archivo.">
@@ -225,7 +228,7 @@ function SellerDetail({ s, session, onClose, onSimulate }: { s: Seller; session:
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="eyebrow">{s.zona}</div>
-          <h2 className="display text-2xl font-bold">{s.display}</h2>
+          <h2 className="display text-[30px] leading-none font-extrabold">{s.display}</h2>
           <div className="text-[13px] text-ink-2">{s.title}</div>
         </div>
         <button onClick={onClose} aria-label="Cerrar" className="grid size-8 shrink-0 place-items-center rounded-md border border-line"><X size={16} /></button>
@@ -233,9 +236,9 @@ function SellerDetail({ s, session, onClose, onSimulate }: { s: Seller; session:
       {s.blocks.map((b) => (
         <div key={b.line} className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
-            <caption className="display flex items-center gap-2 pb-1.5 text-left text-[15px] font-bold">{b.line} · {fmt(b.score, 1)} / 12 <StatusPill s={b.status} /></caption>
+            <caption className="flex items-center gap-2 pb-1.5 text-left text-[15px] font-bold">{b.line}: {fmt(b.score, 1)} de 12 <StatusPill s={b.status} /></caption>
             <thead>
-              <tr className="font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+              <tr className="th">
                 <th className="px-2 py-1.5 text-left font-medium">Indicador</th><th className="px-2 text-right font-medium">Objetivo</th><th className="px-2 text-right font-medium">Real</th><th className="px-2 text-right font-medium">%</th>
                 {c && <th className="px-2 text-right font-medium">Mes ant.</th>}
                 <th className="px-2 text-right font-medium">Cumple</th><th className="px-2 text-right font-medium">Pts</th>

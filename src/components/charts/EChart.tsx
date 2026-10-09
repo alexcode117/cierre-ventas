@@ -16,7 +16,8 @@ function readPalette(): Palette {
   // Se lee desde <body> porque ahí next/font define las variables de las fuentes.
   const cs = getComputedStyle(document.body);
   const colors = Object.fromEntries(TOKENS.map((t) => [t, cs.getPropertyValue(`--${t}`).trim()]));
-  const mono = cs.getPropertyValue('--font-plex-mono').trim() || 'monospace';
+  // Las cifras de los ejes usan la misma letra del texto (con números tabulares), no una monoespaciada.
+  const mono = cs.fontFamily;
   return { ...colors, mono, sans: getComputedStyle(document.body).fontFamily } as Palette;
 }
 
