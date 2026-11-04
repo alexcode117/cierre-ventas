@@ -78,7 +78,10 @@ export function statusOf(score: number, basis: Basis = 'excel'): Status {
 
 const STATUS_RANK: Record<Status, number> = { PRODUCTIVO: 2, ESTABLE: 1, CRITICO: 0 };
 
-/** Estado general de un vendedor: el mejor de sus líneas (con 10 en Pegutil y 8 en Pruven, Productivo). */
+/**
+ * Estado agregado de un vendedor (el mejor de sus líneas), solo para uso interno: la calificación oficial es
+ * por empresa, y la interfaz y el informe muestran el estado de cada línea (`block.status`).
+ */
 export function sellerStatus(blocks: Pick<Block, 'status'>[]): Status {
   return blocks.reduce<Status>((best, b) => (STATUS_RANK[b.status] > STATUS_RANK[best] ? b.status : best), 'CRITICO');
 }

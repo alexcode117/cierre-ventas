@@ -42,6 +42,9 @@ const st = StyleSheet.create({
 });
 
 const RISK: Record<'alto' | 'medio' | 'bajo', Status> = { alto: 'CRITICO', medio: 'ESTABLE', bajo: 'PRODUCTIVO' };
+/** Anchos de la tabla de ranking: #, vendedor, zona, Pegutil, estado, Pruven, estado, total, vs anterior. */
+const RANK_W = [18, 104, 72, 34, 64, 34, 64, 38, 50];
+
 const Pill = ({ s, label }: { s: Status; label?: string }) => (
   <Text style={{ backgroundColor: STATUS_C[s][0], color: STATUS_C[s][1], fontSize: 7, paddingVertical: 1.5, paddingHorizontal: 5, borderRadius: 6, fontFamily: 'Helvetica-Bold' }}>{(label ?? STATUS_LABEL[s]).toUpperCase()}</Text>
 );
@@ -143,7 +146,7 @@ export default function ReportDoc({ s }: { s: Session }) {
         <View style={[st.row, { gap: 8, marginTop: 40 }]}>
           <Kpi label="Pegutil · sacos" value={fmt(a.team.sacos.sold)} sub={teamSub(a.team.sacos, 'sacos')} extra={c ? signedPct(pctDelta(c.team.sacos.cur, c.team.sacos.prev), `${a.team.sacos.excluded.length ? 'total ' : ''}${prevShort}`) : undefined} />
           <Kpi label="Pruven · galones" value={fmt(a.team.galones.sold)} sub={teamSub(a.team.galones, 'gal')} extra={c ? signedPct(pctDelta(c.team.galones.cur, c.team.galones.prev), `${a.team.galones.excluded.length ? 'total ' : ''}${prevShort}`) : undefined} />
-          <Kpi label="Puntaje promedio" value={`${fmt(a.avgScore, 1)} / 24`} sub={(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((k) => { const n = d.sellers.filter((x) => x.status === k).length; return `${n} ${STATUS_LABEL[k].toLowerCase()}${n === 1 ? '' : 's'}`; }).join(' · ')} />
+          <Kpi label="Puntaje promedio" value={`${fmt(a.avgScore, 1)} / 24`} sub={(['Pegutil', 'Pruven'] as const).map((l) => `${l}: ${(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((k) => `${d.sellers.filter((x) => x.blocks.some((b) => b.line === l && b.status === k)).length} ${STATUS_LABEL[k].toLowerCase()}`).join(', ')}`).join('. ')} />
         </View>
 
         <View style={{ marginTop: 50 }}>
@@ -171,10 +174,11 @@ export default function ReportDoc({ s }: { s: Session }) {
       {/* 2 · Resumen */}
       <Page size="A4" style={st.page}>
         <View style={st.body}>
-        <Section title="Ranking de vendedores" sub="Puntaje por línea sobre 12; total sobre 24" wrap={false}>
+        <Section title="Ranking de vendedores" sub="Puntaje y estado por empresa (sobre 12); total sobre 24" wrap={false}>
           <View style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line }]}>
-            {['#', 'Vendedor', 'Zona', 'Pegutil', 'Pruven', 'Total', c ? `vs ${prevShort}` : '', 'Estado'].map((h, i) => (
-              <Text key={i} style={[st.th, { width: [18, 120, 85, 50, 50, 50, 55, 70][i], textAlign: i >= 3 && i <= 6 ? 'right' : 'left' }]}>{t(h)}</Text>
+            {/* La calificación es por empresa: cada línea lleva su propio estado. */}
+            {['#', 'Vendedor', 'Zona', 'Pegutil', '', 'Pruven', '', 'Total', c ? `vs ${prevShort}` : ''].map((h, i) => (
+              <Text key={i} style={[st.th, { width: RANK_W[i], textAlign: [3, 5, 7, 8].includes(i) ? 'right' : 'left', paddingLeft: i === 4 || i === 6 ? 6 : undefined }]}>{t(h)}</Text>
             ))}
           </View>
           {d.sellers.map((x, i) => {
@@ -183,12 +187,17 @@ export default function ReportDoc({ s }: { s: Session }) {
             return (
               <View key={x.sheet} style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line2, alignItems: 'center' }]}>
                 <Text style={[st.td, { width: 18, color: C.ink3 }]}>{i + 1}</Text>
-                <Text style={[st.td, st.bold, { width: 120 }]}>{t(x.display)}</Text>
-                <Text style={[st.td, { width: 85, color: C.ink2 }]}>{t(x.zona ?? '')}</Text>
-                {(['Pegutil', 'Pruven'] as const).map((l) => <Text key={l} style={[st.td, { width: 50, textAlign: 'right' }]}>{fmt(x.blocks.find((b) => b.line === l)?.score, 1)}</Text>)}
-                <Text style={[st.td, st.bold, { width: 50, textAlign: 'right' }]}>{fmt(x.total, 1)}</Text>
-                <Text style={[st.td, { width: 55, textAlign: 'right', color: diff == null || diff === 0 ? C.ink3 : diff > 0 ? C.goodInk : C.critInk }]}>{diff == null ? '' : diff === 0 ? '0' : `${diff > 0 ? '+' : '-'}${fmt(Math.abs(diff), 1)}`}</Text>
-                <View style={[st.td, { width: 70 }]}><Pill s={x.status} /></View>
+                <Text style={[st.td, st.bold, { width: RANK_W[1] }]}>{t(x.display)}</Text>
+                <Text style={[st.td, { width: RANK_W[2], color: C.ink2 }]}>{t(x.zona ?? '')}</Text>
+                {(['Pegutil', 'Pruven'] as const).map((l) => {
+                  const b = x.blocks.find((y) => y.line === l);
+                  return [
+                    <Text key={l} style={[st.td, { width: RANK_W[3], textAlign: 'right' }]}>{fmt(b?.score, 1)}</Text>,
+                    <View key={l + 's'} style={[st.td, { width: RANK_W[4], paddingLeft: 6 }]}>{b ? <Pill s={b.status} /> : null}</View>,
+                  ];
+                })}
+                <Text style={[st.td, st.bold, { width: RANK_W[7], textAlign: 'right' }]}>{fmt(x.total, 1)}</Text>
+                <Text style={[st.td, { width: RANK_W[8], textAlign: 'right', color: diff == null || diff === 0 ? C.ink3 : diff > 0 ? C.goodInk : C.critInk }]}>{diff == null ? '' : diff === 0 ? '0' : `${diff > 0 ? '+' : '-'}${fmt(Math.abs(diff), 1)}`}</Text>
               </View>
             );
           })}

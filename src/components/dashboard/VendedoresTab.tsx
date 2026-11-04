@@ -7,7 +7,7 @@ import { useRef, useState } from 'react';
 import { itemMax } from '@/lib/analysis';
 import { prevItem } from '@/lib/compare';
 import { fmt, itemBand, prettyItem, STATUS_LABEL } from '@/lib/format';
-import { nextStep, STATUS_THRESHOLDS } from '@/lib/rules';
+import { nextStep, STATUS_THRESHOLDS, statusOf } from '@/lib/rules';
 import type { Session } from '@/lib/load';
 import type { Line, Seller } from '@/lib/types';
 import { Button, Card, Delta, fadeUp, SectionHead, Segmented, stagger, StatusPill } from '../ui';
@@ -17,6 +17,7 @@ type HeatMode = 'pct' | 'gap' | 'pts' | 'delta';
 
 const BAND_CLS = { good: 'bg-good-bg text-good-ink', warn: 'bg-warn-bg text-warn-ink', crit: 'bg-crit-bg text-crit-ink', none: 'text-ink-3 font-normal' };
 const BAND_ICON = { good: <Check size={13} strokeWidth={3} />, warn: <Minus size={13} strokeWidth={3} />, crit: <X size={13} strokeWidth={3} />, none: null };
+const STATUS_BG = { PRODUCTIVO: 'bg-good', ESTABLE: 'bg-warn', CRITICO: 'bg-crit' } as const;
 const lineColor = (l: Line) => (l === 'Pegutil' ? 'var(--peg)' : 'var(--pru)');
 
 export default function VendedoresTab({ session, onSimulate }: { session: Session; onSimulate: (i: number) => void }) {
@@ -53,7 +54,10 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                 tabIndex={0} aria-pressed={focus === s.sheet}
                 className={clsx('relative grid cursor-pointer content-start gap-3.5 overflow-hidden rounded-lg border bg-panel px-4.5 pt-5 pb-4 transition-colors',
                   focus === s.sheet ? 'border-ink ring-2 ring-ink' : 'border-line hover:border-ink-3')}>
-                <span className={clsx('absolute inset-x-0 top-0 h-1.5', s.status === 'PRODUCTIVO' ? 'bg-good' : s.status === 'ESTABLE' ? 'bg-warn' : 'bg-crit')} aria-hidden />
+                {/* Franja superior: un tramo por empresa, del color de su calificación. */}
+                <span className="absolute inset-x-0 top-0 flex h-1.5 gap-[2px]" aria-hidden>
+                  {s.blocks.filter((b) => lines.includes(b.line)).map((b) => <i key={b.line} className={clsx('flex-1', STATUS_BG[b.status])} />)}
+                </span>
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="display text-[40px] leading-[0.8] font-extrabold text-ink-3" aria-label={`Puesto ${i + 1}`}>{i + 1}</span>
@@ -62,9 +66,18 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
                       <div className="text-[12.5px] text-ink-3">{s.zona}</div>
                     </div>
                   </div>
-                  <div className="grid justify-items-end gap-1">
-                    <StatusPill s={s.status} />
-                    {cd && cd.prevStatus !== s.status && <span className="text-[11.5px] text-ink-3">antes {STATUS_LABEL[cd.prevStatus].toLowerCase()}</span>}
+                  {/* La calificación es por empresa: un vendedor puede ser Productivo en una y Estable en la otra. */}
+                  <div className="grid shrink-0 justify-items-end gap-1">
+                    {s.blocks.filter((b) => lines.includes(b.line)).map((b) => {
+                      const prev = cd?.lines.find((l) => l.line === b.line)?.prev;
+                      const before = prev != null ? statusOf(prev, session.basis) : null;
+                      return (
+                        <span key={b.line} className="grid justify-items-end">
+                          <StatusPill s={b.status}>{b.line}: {STATUS_LABEL[b.status]}</StatusPill>
+                          {before && before !== b.status && <span className="text-[11px] text-ink-3">antes {STATUS_LABEL[before].toLowerCase()}</span>}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="grid gap-2.5">

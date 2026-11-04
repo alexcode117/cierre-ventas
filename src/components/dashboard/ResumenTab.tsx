@@ -17,7 +17,10 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 export default function ResumenTab({ session, onGo }: { session: Session; onGo: (t: TabKey) => void }) {
   const { cur, analysis: a, comparison: c } = session;
   const d = cur.report;
-  const count = (s: Status) => d.sellers.filter((x) => x.status === s).length;
+  // La calificación es por empresa: se cuenta cada línea de cada vendedor.
+  const LINES = ['Pegutil', 'Pruven'] as const;
+  const blocksOf = (l: (typeof LINES)[number]) => d.sellers.flatMap((x) => x.blocks.filter((b) => b.line === l).map((b) => ({ x, b })));
+  const count = (l: (typeof LINES)[number], s: Status) => blocksOf(l).filter(({ b }) => b.status === s).length;
   const prevLabel = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')) : '';
   const curLabel = titleCase((d.month ?? 'Este mes').replace(/\s*20\d\d/, ''));
   const vsPrev = (m: TeamMetric) => `${m.excluded.length ? 'del total ' : ''}vs ${prevLabel.toLowerCase()}`;
@@ -40,20 +43,33 @@ export default function ResumenTab({ session, onGo }: { session: Session; onGo: 
               <CountUp value={a.avgScore} digits={1} /><span className="ml-1.5 text-[22px] font-bold text-ink-3">de 24</span>
             </div>
             {c && <Delta cur={c.team.avgScore.cur} prev={c.team.avgScore.prev} digits={1} suffix=" pts" label={`vs ${prevLabel.toLowerCase()}`} />}
-            {/* Un azulejo por vendedor, del color de su estado. */}
-            <div className="mt-1 flex flex-wrap gap-[3px] rounded-md bg-grout p-[3px]" role="img" aria-label={`${count('PRODUCTIVO')} productivos, ${count('ESTABLE')} estables, ${count('CRITICO')} críticos`}>
-              {(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).flatMap((s) => d.sellers.filter((x) => x.status === s).map((x) => (
-                <span key={x.sheet} title={`${x.display}: ${STATUS_LABEL[s]}`} className={clsx('h-7 min-w-7 flex-1 rounded-[3px]', STATUS_TILE[s])} />
-              )))}
-            </div>
-            <ul className="grid gap-1 text-[13.5px]">
-              {(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((s) => (
-                <li key={s} className="flex items-center gap-2">
-                  <i className={clsx('size-2.5 rounded-[2px]', STATUS_TILE[s])} aria-hidden />
-                  {STATUS_LABEL[s]}<b className="ml-auto font-semibold">{count(s)}</b>
-                </li>
+            {/* Calificación por empresa: un azulejo por vendedor en cada línea, del color de su estado. */}
+            <div className="mt-1 grid gap-1.5">
+              {LINES.map((l) => (
+                <div key={l} className="grid grid-cols-[56px_1fr] items-center gap-2">
+                  <span className="text-[12.5px] font-semibold text-ink-2">{l}</span>
+                  <div className="flex gap-[3px] rounded-md bg-grout p-[3px]" role="img"
+                    aria-label={`${l}: ${count(l, 'PRODUCTIVO')} productivos, ${count(l, 'ESTABLE')} estables, ${count(l, 'CRITICO')} críticos`}>
+                    {(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).flatMap((st) => blocksOf(l).filter(({ b }) => b.status === st).map(({ x, b }) => (
+                      <span key={x.sheet} title={`${x.display}, ${l}: ${STATUS_LABEL[st]} (${fmt(b.score, 1)} pts)`} className={clsx('h-6 min-w-0 flex-1 rounded-[3px]', STATUS_TILE[st])} />
+                    )))}
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
+            <table className="text-[13px]">
+              <thead>
+                <tr className="th"><th className="text-left font-semibold">Vendedores</th>{LINES.map((l) => <th key={l} className="w-16 text-right font-semibold">{l}</th>)}</tr>
+              </thead>
+              <tbody>
+                {(['PRODUCTIVO', 'ESTABLE', 'CRITICO'] as const).map((st) => (
+                  <tr key={st}>
+                    <td className="py-0.5"><span className="inline-flex items-center gap-2"><i className={clsx('size-2.5 rounded-[2px]', STATUS_TILE[st])} aria-hidden />{STATUS_LABEL[st]}</span></td>
+                    {LINES.map((l) => <td key={l} className="text-right font-semibold">{count(l, st)}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
       </section>
