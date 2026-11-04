@@ -6,7 +6,7 @@ import { Target } from 'lucide-react';
 import { fmt, signed, titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
 import { findSeller, findZona, matchProduct } from '@/lib/match';
-import { Card, fadeUp, Pill, RiskPill, SectionHead, stagger } from '../ui';
+import { Card, fadeUp, Pill, SectionHead, stagger } from '../ui';
 
 const growthCls = (g: number | null | undefined) => (g == null ? 'text-ink-3' : g > 40 ? 'text-crit-ink' : g > 15 ? 'text-warn-ink' : 'text-good-ink');
 
@@ -26,8 +26,6 @@ export default function MetasTab({ session }: { session: Session }) {
     );
   }
 
-  const risks = { alto: 0, medio: 0, bajo: 0 };
-  for (const p of a.plan) if (p.risk) risks[p.risk]++;
   const iS = M.cols.findIndex((c) => /SACOS/i.test(c));
   const general = M.rows.find((r) => /GENERAL|TOTAL/i.test(r.vendedor));
   const teamSacosMeta = general && iS >= 0 ? general.values[iS] : null;
@@ -50,7 +48,7 @@ export default function MetasTab({ session }: { session: Session }) {
           <h2 className="display text-2xl font-bold">{titleCase(M.title)}</h2>
           <p className="text-[14px] text-ink-2">Objetivos cargados en la hoja METAS, comparados con lo que cada vendedor logró en {month}.</p>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,380px)]">
           <Card className="grid content-start gap-1.5 px-4.5 py-4">
             <span className="eyebrow">Meta de sacos del equipo</span>
             <div className="display text-[32px] leading-none font-extrabold">{fmt(teamSacosMeta)}</div>
@@ -59,29 +57,6 @@ export default function MetasTab({ session }: { session: Session }) {
                 {signed(((teamSacosMeta / teamSacos) - 1) * 100)}% frente a los {fmt(teamSacos)} sacos de {month}
               </span>
             ) : <span className="text-[13px] text-ink-3">Sin total de equipo en METAS</span>}
-          </Card>
-          <Card className="grid content-start gap-2 px-4.5 py-4">
-            <span className="eyebrow">Riesgo de no cumplir</span>
-            <div className="flex flex-wrap gap-1.5">
-              <RiskPill r="alto" /><b className="mr-2 text-[15px]">{risks.alto}</b>
-              <RiskPill r="medio" /><b className="mr-2 text-[15px]">{risks.medio}</b>
-              <RiskPill r="bajo" /><b className="text-[15px]">{risks.bajo}</b>
-            </div>
-            <span className="text-[12.5px] text-ink-3">Alto: requiere crecer más de 40% en alguna línea; medio: entre 15% y 40%.</span>
-          </Card>
-          <Card className="grid content-start gap-1.5 px-4.5 py-4">
-            <span className="eyebrow">Mayor esfuerzo requerido</span>
-            {(() => {
-              const top = a.plan.filter((p) => p.gS != null || p.gP != null).sort((x, y) => Math.max(y.gS ?? -1e9, y.gP ?? -1e9) - Math.max(x.gS ?? -1e9, x.gP ?? -1e9))[0];
-              if (!top) return <span className="text-[13px] text-ink-3">Sin datos</span>;
-              const g = Math.max(top.gS ?? -1e9, top.gP ?? -1e9);
-              return (
-                <>
-                  <div className="display text-[22px] leading-tight font-bold">{top.nombre}</div>
-                  <span className={clsx('text-[13px] font-medium', growthCls(g))}>{signed(g)}% en {g === top.gP ? 'Pruven' : 'sacos'} sobre lo vendido en {month}</span>
-                </>
-              );
-            })()}
           </Card>
         </div>
       </motion.section>
@@ -93,7 +68,7 @@ export default function MetasTab({ session }: { session: Session }) {
             <table className="w-full border-collapse text-[13.5px]">
               <thead>
                 <tr className="border-b border-line th">
-                  {['Vendedor', `Sacos ${month}`, 'Meta sacos', 'Crecimiento', `Pruven ${month}`, 'Meta Pruven', 'Crecimiento', 'Riesgo'].map((h, i) => (
+                  {['Vendedor', `Sacos ${month}`, 'Meta sacos', 'Crecimiento', `Pruven ${month}`, 'Meta Pruven'].map((h, i) => (
                     <th key={i} className={clsx('px-3 py-2.5 font-medium whitespace-nowrap', i ? 'text-right' : 'pl-4.5 text-left')}>{h}</th>
                   ))}
                 </tr>
@@ -107,8 +82,6 @@ export default function MetasTab({ session }: { session: Session }) {
                     <td className={clsx('px-3 text-right font-semibold', growthCls(p.gS))}>{p.gS == null ? '—' : `${signed(p.gS)}%`}</td>
                     <td className="px-3 text-right">{fmt(p.realP, 1)}</td>
                     <td className="px-3 text-right">{fmt(p.metaP)}</td>
-                    <td className={clsx('px-3 text-right font-semibold', growthCls(p.gP))}>{p.gP == null ? '—' : `${signed(p.gP)}%`}</td>
-                    <td className="px-3 text-right">{p.risk ? <RiskPill r={p.risk} /> : '—'}</td>
                   </tr>
                 ))}
               </tbody>
