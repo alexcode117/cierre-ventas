@@ -76,6 +76,13 @@ export function statusOf(score: number, basis: Basis = 'excel'): Status {
   return score > t.productivo + 1e-9 ? 'PRODUCTIVO' : score > t.estable + 1e-9 ? 'ESTABLE' : 'CRITICO';
 }
 
+const STATUS_RANK: Record<Status, number> = { PRODUCTIVO: 2, ESTABLE: 1, CRITICO: 0 };
+
+/** Estado general de un vendedor: el mejor de sus líneas (con 10 en Pegutil y 8 en Pruven, Productivo). */
+export function sellerStatus(blocks: Pick<Block, 'status'>[]): Status {
+  return blocks.reduce<Status>((best, b) => (STATUS_RANK[b.status] > STATUS_RANK[best] ? b.status : best), 'CRITICO');
+}
+
 export const isCobranza = (name: string) => /COBRANZA/i.test(name);
 
 /** Indicador del procedimiento al que corresponde una fila del Excel (PROD = venta de un producto Pruven). */

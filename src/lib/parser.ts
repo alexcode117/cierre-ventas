@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { checkCalculos, parseCalculos } from './calculos';
 import { fmt, MESES, monthKey, STATUS_LABEL } from './format';
-import { rulePoints, statusOf, statusScaleText } from './rules';
+import { rulePoints, sellerStatus, statusOf, statusScaleText } from './rules';
 import type { Award, Block, DataAlert, Item, Line, Metas, MonthReport, Results, Seller, Status, Zona } from './types';
 
 type Cell = string | number | boolean | Date | null;
@@ -179,7 +179,7 @@ function parseSeller(sheet: string, rows: Rows): Seller | null {
     sacos: { meta: sacosItem?.obj ?? null, real: sacosItem?.real ?? null },
     galones,
     total,
-    status: statusOf(total / blocks.length),
+    status: sellerStatus(blocks),
   };
 }
 

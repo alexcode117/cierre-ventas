@@ -37,7 +37,7 @@ Hay dos bases de cálculo de puntos y estados, que se eligen con el selector **P
   - Atención de cartera (clientes atendidos ÷ objetivo del Excel, que es el 70% de la cartera): 3 pts desde el 70%, 2 pts desde el 60%, 1 pt desde el 50%.
   - Nuevos clientes: 3 pts al 100%, 1,5 pts desde el 50%.
   - Incentivos: crecimiento en ventas 0,70%, cobranza 0,45%, cartera 0,13% (Pegutil) o 0,12% (Pruven), nuevos clientes 0,10%. Total 1,38% en Pegutil y 1,37% en Pruven.
-  - Estados (escala corregida por la gerencia, igual en las dos bases): Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos. Reemplaza la del documento (≥ 7 / 4 a 6 / < 3) y la leyenda del Excel (> 10 / 4 a 9 / < 3), que dejaban puntajes sin clasificar.
+  - Estados (escala corregida por la gerencia, igual en las dos bases): Productivo más de 9, Estable más de 3 y hasta 9, Crítico 3 o menos, por línea. El estado general del vendedor es el mejor de sus dos líneas. Reemplaza la del documento (≥ 7 / 4 a 6 / < 3) y la leyenda del Excel (> 10 / 4 a 9 / < 3), que dejaban puntajes sin clasificar.
   - Las ventas por producto de Pruven se muestran como información, sin puntos.
 - **Excel**: los puntos del libro, que aplica los mismos tramos; la diferencia es que en Pruven el crecimiento se reparte en ventas por producto (0,5 pts cada una desde el 80% de su meta). Si un puntaje del Excel no corresponde a la regla, se marca como **Revisar** (o **Crítico** si cambia el estado).
 

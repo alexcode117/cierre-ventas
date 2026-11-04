@@ -1,4 +1,4 @@
-import { KPI_LABEL, statusOf, tierPoints } from './rules';
+import { KPI_LABEL, sellerStatus, statusOf, tierPoints } from './rules';
 import type { Block, Item, KpiKey, MonthReport, Seller, Status } from './types';
 
 /**
@@ -48,7 +48,7 @@ function evaluateSeller(s: Seller, d: MonthReport): Seller {
     return { ...b, items, score, sum: score, stated: null, excelScore: b.score, excelStatus: b.status, status: statusOf(score, 'procedimiento') };
   });
   const total = blocks.reduce((a, b) => a + b.score, 0);
-  return { ...s, blocks, total, status: statusOf(total / blocks.length, 'procedimiento'), excelTotal: s.total, excelStatus: s.status };
+  return { ...s, blocks, total, status: sellerStatus(blocks), excelTotal: s.total, excelStatus: s.status };
 }
 
 export interface BasisDiff {

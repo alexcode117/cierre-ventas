@@ -9,7 +9,7 @@ import { parseFile, parseWorkbook, ParseError } from '../src/lib/parser';
 import { applyProcedure, basisDiffs } from '../src/lib/procedure';
 import { pctDiffers } from '../src/lib/awards';
 import { buildSession, type LoadedFile } from '../src/lib/load';
-import { rulePoints, scoreAt, statusOf, tierPoints } from '../src/lib/rules';
+import { rulePoints, scoreAt, sellerStatus, statusOf, tierPoints } from '../src/lib/rules';
 
 const load = (f: string) => {
   const b = readFileSync(`public/ejemplos/${f}`);
@@ -256,5 +256,14 @@ describe('observaciones de octubre', () => {
     const ac = checks.find((c) => c.key === 'AC' && c.award.line === 'Pegutil')!;
     expect(ac.detail).toMatch(/58 clientes atendidos/);
     expect(checks.find((c) => c.key === 'ANC' && c.award.line === 'Pegutil')!.status).toBe('tie');
+  });
+});
+
+describe('estado del vendedor', () => {
+  it('es el mejor de sus líneas: 10 en una línea basta para Productivo', () => {
+    expect(sellerStatus([{ status: 'PRODUCTIVO' }, { status: 'ESTABLE' }])).toBe('PRODUCTIVO');
+    expect(sellerStatus([{ status: statusOf(10) }, { status: statusOf(8) }])).toBe('PRODUCTIVO');
+    expect(sellerStatus([{ status: 'CRITICO' }, { status: 'ESTABLE' }])).toBe('ESTABLE');
+    expect(sellerStatus([{ status: 'CRITICO' }, { status: 'CRITICO' }])).toBe('CRITICO');
   });
 });
