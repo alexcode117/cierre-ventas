@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { checkCalculos, parseCalculos } from './calculos';
-import { fmt, monthKey, STATUS_LABEL } from './format';
+import { fmt, MESES, monthKey, STATUS_LABEL } from './format';
 import { rulePoints, statusOf, statusScaleText, thresholdOf } from './rules';
 import type { Award, Block, DataAlert, Item, Line, Metas, MonthReport, Results, Seller, Status, Zona } from './types';
 
@@ -10,6 +10,8 @@ type Rows = Cell[][];
 export class ParseError extends Error {}
 
 const up = (v: Cell | undefined) => (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().toUpperCase();
+/** Como up(), sin tildes: para encabezados que a veces se escriben "VALORACIÓN". */
+const norm = (v: Cell | undefined) => up(v).normalize('NFD').replace(/[̀-ͯ]/g, '');
 const num = (v: Cell | undefined): number | null => {
   if (typeof v === 'number') return v;
   if (v == null || v === '' || typeof v === 'boolean' || v instanceof Date) return null;
@@ -27,19 +29,19 @@ function findCell(rows: Rows, test: (v: string) => boolean): [number, number] | 
   return null;
 }
 
-/** Lee un ArrayBuffer de Excel y lo convierte en el modelo del mes. */
-export function parseFile(buf: ArrayBuffer): MonthReport {
+/** Lee un ArrayBuffer de Excel y lo convierte en el modelo del mes. El nombre del archivo ayuda a confirmar el mes. */
+export function parseFile(buf: ArrayBuffer, fileName?: string): MonthReport {
   let wb: XLSX.WorkBook;
   try {
     wb = XLSX.read(buf, { type: 'array' });
   } catch {
     throw new ParseError('El archivo no es un Excel válido o está dañado.');
   }
-  return parseWorkbook(wb);
+  return parseWorkbook(wb, fileName);
 }
 
-export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
-  const out: MonthReport = { basis: 'excel', month: null, key: null, sellers: [], results: null, awards: [], metas: null, alerts: [] };
+export function parseWorkbook(wb: XLSX.WorkBook, fileName?: string): MonthReport {
+  const out: MonthReport = { basis: 'excel', month: null, key: null, sellers: [], results: null, awards: [], metas: null, calc: [], alerts: [] };
   let calcRows: Rows | null = null;
   let legend: string[] | null = null;
 
@@ -62,24 +64,60 @@ export function parseWorkbook(wb: XLSX.WorkBook): MonthReport {
     if (s) {
       out.sellers.push(s);
       legend ??= readLegend(rows);
+    } else if (rows.some((r) => (r ?? []).some((v) => up(v)))) {
+      out.alerts.push({ level: 'warn', text: `La hoja "${clean(name)}" no se leyó: no tiene una columna "INDICADOR" con OBJETIVO, REAL y VALORACION. Si es la hoja de un vendedor, use el mismo formato que las demás.` });
     }
   }
 
   if (!out.sellers.length && !out.results) {
     throw new ParseError('No se encontraron hojas de vendedor (con la columna "INDICADOR") ni la hoja RESULTADOS.');
   }
+  resolveMonth(out, fileName);
   out.key = monthKey(out.month);
   checkConsistency(out);
-  if (calcRows) out.alerts.push(...checkCalculos(out, parseCalculos(calcRows)));
+  if (calcRows) {
+    out.calc = parseCalculos(calcRows);
+    out.alerts.push(...checkCalculos(out, out.calc));
+  }
   if (legend)
     out.alerts.push({ level: 'info', text: `La leyenda del Excel dice ${legend.join(', ')}, y deja sin clasificar el 3 y los puntajes entre 9 y 10. La herramienta usa la escala corregida: ${statusScaleText()}.` });
   out.sellers.sort((a, b) => b.total - a.total);
   return out;
 }
 
+/** Mes (0-11) y año que aparecen en un texto: "RESULTADOS OCTUBRE 2026", "cierre-octubre.xlsx". */
+function monthIn(text: string | null | undefined): { i: number; y: number | null } | null {
+  if (!text) return null;
+  const u = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace('SETIEMBRE', 'SEPTIEMBRE');
+  const i = MESES.findIndex((m) => u.includes(m));
+  if (i < 0) return null;
+  const y = u.match(/20\d\d/)?.[0];
+  return { i, y: y ? +y : null };
+}
+
+/**
+ * El título de RESULTADOS a veces se queda con el mes de un cierre anterior. Se contrasta con el nombre
+ * del archivo y, si este no trae el mes, con la hoja METAS (que tiene las metas del mes siguiente).
+ */
+function resolveMonth(out: MonthReport, fileName?: string) {
+  const results = monthIn(out.month);
+  const file = monthIn(fileName);
+  const next = monthIn(out.metas?.title);
+  const metas = next && { i: (next.i + 11) % 12, y: next.y != null && next.i === 0 ? next.y - 1 : next.y };
+  const other = file ?? metas;
+  if (!other || (results && results.i === other.i)) return;
+  const y = other.y ?? results?.y ?? null;
+  const label = `${MESES[other.i]}${y ? ` ${y}` : ''}`;
+  const source = file ? `el nombre del archivo indica ${MESES[other.i].toLowerCase()}` : `la hoja METAS trae las metas de ${MESES[next!.i].toLowerCase()}`;
+  out.alerts.push(results
+    ? { level: 'warn', text: `El título de RESULTADOS dice "${out.month}", pero ${source}: se toma ${label}. Corrija el título de RESULTADOS en el Excel.` }
+    : { level: 'info', text: `RESULTADOS no indica el mes; ${source}, así que se toma ${label}.` });
+  out.month = label;
+}
+
 function parseSeller(sheet: string, rows: Rows): Seller | null {
   const heads: [number, number][] = [];
-  rows.forEach((row, r) => (row ?? []).forEach((v, c) => up(v) === 'INDICADOR' && heads.push([r, c])));
+  rows.forEach((row, r) => (row ?? []).forEach((v, c) => /^INDICADOR(ES)?$/.test(norm(v)) && heads.push([r, c])));
   if (!heads.length) return null;
 
   const blocks: Block[] = [];
@@ -87,9 +125,9 @@ function parseSeller(sheet: string, rows: Rows): Seller | null {
   let sellerTitle: string | null = null;
 
   heads.forEach(([hr, hc], bi) => {
-    const hdr = (rows[hr] ?? []).map(up);
-    const col = (k: string) => hdr.findIndex((h) => h === k);
-    const ci = { obj: col('OBJETIVO'), real: col('REAL'), pct: col('%'), ok: col('CUMPLE'), pts: col('VALORACION') };
+    const hdr = (rows[hr] ?? []).map(norm);
+    const col = (...names: string[]) => hdr.findIndex((h) => names.includes(h));
+    const ci = { obj: col('OBJETIVO', 'META'), real: col('REAL', 'LOGRADO'), pct: col('%'), ok: col('CUMPLE'), pts: col('VALORACION', 'PUNTOS', 'PTS') };
 
     let title: string | null = null;
     for (let r = hr - 1; r >= Math.max(0, hr - 4); r--) {
@@ -220,8 +258,10 @@ function checkConsistency(out: MonthReport) {
   const zonas = out.results?.zonas ?? [];
 
   for (const s of out.sellers) {
-    const tok = up(s.sheet).split(' ')[0];
-    let z = zonas.find((z) => up(z.vendedor).includes(tok) || up(z.zona).includes(tok));
+    // Palabra completa: "ANA" no debe coincidir con "MARIANA" ni con "SANTANA".
+    const tok = norm(s.sheet).split(' ')[0];
+    const words = (v: string) => norm(v).split(' ');
+    let z = zonas.find((z) => !z.sheet && (words(z.vendedor).includes(tok) || words(z.zona).includes(tok)));
     if (!z && s.sacos.real != null) z = zonas.find((z) => z.sacos === s.sacos.real);
     if (z) {
       s.zona = z.zona;

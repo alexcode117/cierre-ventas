@@ -10,9 +10,9 @@ Convierte el Excel mensual de indicadores del equipo de ventas en un dashboard i
 
 | Pestaña | Contenido |
 |---|---|
-| Resumen | Sacos y galones contra meta, puntaje promedio, venta cruzada, hallazgos priorizados, puntos perdidos por indicador, puntos al alcance y, si hay mes anterior, la evolución del puntaje de cada vendedor |
+| Resumen | Sacos y galones contra meta, puntaje promedio, puntos perdidos por indicador, puntos al alcance y, si hay mes anterior, la evolución del puntaje de cada vendedor |
 | Vendedores | Ranking con puntaje Pegutil/Pruven, mapa de cumplimiento (% de meta, lo que falta, puntos o cambio vs mes anterior), detalle por vendedor y revisión de inconsistencias del archivo |
-| Zonas y productos | Ventas por zona contra meta, venta cruzada, participación, cumplimiento por producto Pruven y reconocimientos |
+| Zonas y productos | Participación, ventas por zona contra meta, cumplimiento por producto Pruven y reconocimientos |
 | Metas | Metas del próximo mes (hoja METAS): si son alcanzables, nivel de riesgo y detalle por producto frente a lo logrado en el mes |
 | Simulador | Mueve el resultado de cada indicador y recalcula puntaje y estado del vendedor |
 | Procedimiento | Excel frente al Procedimiento de KPI's, fórmulas y rangos, y tabla de incentivos oficial frente a RESULTADOS |
@@ -22,7 +22,7 @@ Convierte el Excel mensual de indicadores del equipo de ventas en un dashboard i
 El lector sigue la estructura del libro `INDICADORES.xlsx`:
 
 - **Una hoja por vendedor o zona** con dos bloques de indicadores (Pegutil y Pruven). Cada bloque tiene una fila de encabezado con `INDICADOR`, `OBJETIVO`, `REAL`, `%`, `CUMPLE` y `VALORACION`, y un título como `INDICADORES MENSUALES ... (ESTABLE)`. Debajo del último bloque van las filas `META`, `VENTAS` y `% ALCANZADO` de galones.
-- **`RESULTADOS`**: título `RESULTADOS <MES> <AÑO>`, tabla `ZONA / Vendedor / Sacos Vendidos / Galones Vendidos` con filas `TOTAL`, `META` y `% ALCANZADO`, y los bloques `VARIABLE PEGUTL` y `VARIABLE PRUVEN`.
+- **`RESULTADOS`**: título `RESULTADOS <MES> <AÑO>` (si no coincide con el mes del nombre del archivo o con el anterior al de METAS, se usa ese y se avisa), tabla `ZONA / Vendedor / Sacos Vendidos / Galones Vendidos` con filas `TOTAL`, `META` y `% ALCANZADO`, y los bloques `VARIABLE PEGUTL` y `VARIABLE PRUVEN`.
 - **`METAS`**: título `METAS MES <MES>` y tabla `VENDEDOR / SACOS / CAUCHO / ...`.
 - **`CALCULOS`** (opcional): sus bloques (`VENDEDOR / Meta … / Ventas`, `TOTAL GALONES`, `CLIENTES NUEVOS …`, `ATENCION DE CARTERA …`) se comparan con las hojas de vendedor y con RESULTADOS; cada diferencia aparece en *Revisión del archivo*.
 
@@ -47,7 +47,7 @@ Fuente de cada cifra:
 - **Puntos, metas individuales y tarjetas de vendedor:** la hoja de cada vendedor. Si RESULTADOS dice otra cosa, la tarjeta lo muestra.
 - **Ventas por zona y totales del equipo:** RESULTADOS.
 - **Cumplimiento del equipo:** ventas y meta de la misma base. Si la meta del equipo es la suma de las metas individuales, las zonas sin hoja (sin meta propia) se excluyen de las ventas y se informan aparte.
-- **Reconocimientos:** se verifican contra las hojas de vendedor según los criterios del procedimiento. "Mayor incremento" se mide contra la meta (solo cuenta por encima del 100%).
+- **Reconocimientos:** "Mayor incremento" se mide en % de la meta (solo cuenta por encima del 100%). Cobranza, manejo de cartera y nuevos clientes se premian por valor absoluto: el que más cobró (bloque `META COBRANZA` con la columna `Cobrado` en CALCULOS), el que más clientes de la cartera atendió y el que más clientes nuevos activó (CALCULOS si lo trae; si no, las hojas de vendedor).
 
 ## Desarrollo
 

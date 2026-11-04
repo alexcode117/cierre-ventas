@@ -1,22 +1,12 @@
 import { fmt } from './format';
 import { findSeller, matchProduct } from './match';
 import { meetsTarget } from './rules';
-import type { DataAlert, Item, Line, MonthReport, Seller } from './types';
+import type { CalcEntry, DataAlert, Item, Line, MonthReport, Seller } from './types';
+
+export type { CalcEntry };
 
 type Cell = string | number | boolean | Date | null;
 type Rows = Cell[][];
-
-/** Un dato de la hoja CALCULOS: meta y valor de un vendedor para un indicador. */
-export interface CalcEntry {
-  who: string;
-  kind: 'sacos' | 'producto' | 'galones' | 'nuevos' | 'cartera';
-  line: Line;
-  product?: string;
-  meta: number | null;
-  real: number | null;
-  /** true para la fila de total del equipo. */
-  team?: boolean;
-}
 
 const up = (v: Cell | undefined) => (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().toUpperCase();
 const num = (v: Cell | undefined): number | null => (typeof v === 'number' ? v : null);
@@ -31,14 +21,19 @@ export function parseCalculos(rows: Rows): CalcEntry[] {
   rows.forEach((row, r) =>
     (row ?? []).forEach((v, c) => {
       if (up(v) !== 'VENDEDOR') return;
-      const titleTexts = [r - 1, r - 2].map((k) => (rows[k] ?? []).slice(c, c + 4).filter(isText).map((x) => String(x).trim())).find((t) => t.length) ?? [];
+      // El título se busca solo hasta el siguiente bloque de la misma fila (otro "VENDEDOR"), para no mezclar Pegutil y Pruven.
+      const nextBlock = (row ?? []).findIndex((x, k) => k > c && up(x) === 'VENDEDOR');
+      const end = Math.min(c + 4, nextBlock > 0 ? nextBlock : Infinity);
+      const titleTexts = [r - 1, r - 2].map((k) => (rows[k] ?? []).slice(c, end).filter(isText).map((x) => String(x).trim())).find((t) => t.length) ?? [];
       const label = titleTexts.join(' ');
       const L = up(label);
-      if (!L || /COBRANZA/.test(L)) return;
+      if (!L) return;
       const line: Line = /PRUVEN/.test(L) ? 'Pruven' : 'Pegutil';
       let kind: CalcEntry['kind'];
       let product: string | undefined;
-      if (/GALONES/.test(L)) kind = 'galones';
+      // "META COBRANZA PEGUTIL" con la columna "Cobrado": monto cobrado por vendedor.
+      if (/COBRANZA/.test(L)) kind = 'cobranza';
+      else if (/GALONES/.test(L)) kind = 'galones';
       else if (/CLIENTES NUEVOS|NUEVOS CLIENTES/.test(L)) kind = 'nuevos';
       else if (/CARTERA/.test(L)) kind = 'cartera';
       else if (/PRUVEN/.test(L)) {
@@ -52,7 +47,9 @@ export function parseCalculos(rows: Rows): CalcEntry[] {
       const hdr = (rows[r] ?? []).map(up);
       const span = [c + 1, c + 2, c + 3, c + 4];
       const metaCol = span.find((k) => /^META/.test(hdr[k] ?? ''));
-      const realCol = kind === 'cartera' ? span.find((k) => hdr[k] === 'TOTAL') : span.find((k) => /^(VENTAS|LOGRADO)$/.test(hdr[k] ?? ''));
+      const realCol = kind === 'cartera' ? span.find((k) => hdr[k] === 'TOTAL')
+        : kind === 'cobranza' ? span.find((k) => /^COBRADO/.test(hdr[k] ?? ''))
+        : span.find((k) => /^(VENTAS|LOGRADO)$/.test(hdr[k] ?? ''));
       if (realCol == null) return;
 
       let k = r + 1;
@@ -72,7 +69,7 @@ export function parseCalculos(rows: Rows): CalcEntry[] {
   return out;
 }
 
-const LABEL: Record<CalcEntry['kind'], string> = { sacos: 'sacos', producto: '', galones: 'galones', nuevos: 'nuevos clientes', cartera: 'atención de cartera' };
+const LABEL: Record<CalcEntry['kind'], string> = { sacos: 'sacos', producto: '', galones: 'galones', nuevos: 'nuevos clientes', cartera: 'atención de cartera', cobranza: 'monto cobrado' };
 
 function sellerItem(s: Seller, e: CalcEntry): { meta: number | null; real: number | null; item?: Item } | null {
   const block = s.blocks.find((b) => b.line === e.line);
@@ -93,6 +90,8 @@ export function checkCalculos(d: MonthReport, entries: CalcEntry[]): DataAlert[]
   const digits = (a: number | null, b: number | null) => (Number.isInteger(a) && Number.isInteger(b) ? 0 : 2);
 
   for (const e of entries) {
+    // El monto cobrado no está en las hojas de vendedor (ahí la cobranza es un %): no hay con qué compararlo.
+    if (e.kind === 'cobranza') continue;
     const what = e.kind === 'producto' ? `ventas ${e.product?.toLowerCase()}` : LABEL[e.kind];
     if (e.team) {
       const R = d.results;

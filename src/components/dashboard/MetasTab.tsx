@@ -6,7 +6,7 @@ import { Target } from 'lucide-react';
 import { fmt, signed, titleCase } from '@/lib/format';
 import type { Session } from '@/lib/load';
 import { findSeller, findZona, matchProduct } from '@/lib/match';
-import { Card, fadeUp, Pill, SectionHead, stagger } from '../ui';
+import { Card, fadeUp, SectionHead, stagger } from '../ui';
 
 const growthCls = (g: number | null | undefined) => (g == null ? 'text-ink-3' : g > 40 ? 'text-crit-ink' : g > 15 ? 'text-warn-ink' : 'text-good-ink');
 
@@ -133,14 +133,6 @@ export default function MetasTab({ session }: { session: Session }) {
         </p>
       </motion.section>
 
-      {session.analysis.insights.some((i) => i.tags.includes('Metas')) && (
-        <motion.section variants={fadeUp}>
-          <Card className="flex items-start gap-3 border-l-4 border-l-crit px-4.5 py-3.5">
-            <Pill className="bg-crit-bg text-crit-ink">Atención</Pill>
-            <p className="text-[13.5px] text-ink-2">{session.analysis.insights.find((i) => i.tags.includes('Metas'))!.body}</p>
-          </Card>
-        </motion.section>
-      )}
     </motion.div>
   );
 }

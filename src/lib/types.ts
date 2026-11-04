@@ -80,6 +80,19 @@ export interface Metas {
   rows: { vendedor: string; values: (number | null)[] }[];
 }
 
+/** Un dato de la hoja CALCULOS: meta y valor de un vendedor para un indicador. */
+export interface CalcEntry {
+  who: string;
+  /** cobranza = monto cobrado; nuevos = clientes nuevos logrados; cartera = clientes atendidos (valores absolutos). */
+  kind: 'sacos' | 'producto' | 'galones' | 'nuevos' | 'cartera' | 'cobranza';
+  line: Line;
+  product?: string;
+  meta: number | null;
+  real: number | null;
+  /** true para la fila de total del equipo. */
+  team?: boolean;
+}
+
 export type AlertLevel = 'crit' | 'warn' | 'info';
 export interface DataAlert {
   level: AlertLevel;
@@ -96,6 +109,8 @@ export interface MonthReport {
   results: Results | null;
   awards: Award[];
   metas: Metas | null;
+  /** Datos de la hoja CALCULOS (vacío si el archivo no la trae). */
+  calc: CalcEntry[];
   alerts: DataAlert[];
 }
 

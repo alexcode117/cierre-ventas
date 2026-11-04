@@ -34,7 +34,7 @@ export interface Session {
 export async function loadFile(name: string, buf: ArrayBuffer): Promise<LoadedFile> {
   // El lector de Excel se descarga recién cuando se carga el primer archivo.
   const { parseFile } = await import('./parser');
-  const [report, hash] = await Promise.all([Promise.resolve().then(() => parseFile(buf)), sha256(buf)]);
+  const [report, hash] = await Promise.all([Promise.resolve().then(() => parseFile(buf, name)), sha256(buf)]);
   return { name, size: buf.byteLength, hash, report };
 }
 

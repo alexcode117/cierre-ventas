@@ -4,7 +4,8 @@ import { analyze } from '../src/lib/analysis';
 import { checkAwards } from '../src/lib/awards';
 import { matchProduct } from '../src/lib/match';
 import { compare, validatePair } from '../src/lib/compare';
-import { parseFile, ParseError } from '../src/lib/parser';
+import * as XLSX from 'xlsx';
+import { parseFile, parseWorkbook, ParseError } from '../src/lib/parser';
 import { applyProcedure, basisDiffs } from '../src/lib/procedure';
 import { pctDiffers } from '../src/lib/awards';
 import { buildSession, type LoadedFile } from '../src/lib/load';
@@ -195,5 +196,51 @@ describe('escala de estados', () => {
       expect(statusOf(3, basis)).toBe('CRITICO');
       expect(statusOf(0, basis)).toBe('CRITICO');
     }
+  });
+});
+
+describe('observaciones de octubre', () => {
+  const buf = (f: string) => { const b = readFileSync(`public/ejemplos/${f}`); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer; };
+
+  it('si el título de RESULTADOS quedó de otro mes, toma el del nombre del archivo y avisa', () => {
+    const r = parseFile(buf('ejemplo-agosto-2026.xlsx'), 'cierre octubre 2026.xlsx');
+    expect(r.month).toBe('OCTUBRE 2026');
+    expect(r.key).toBe('2026-10');
+    expect(r.alerts.some((a) => a.level === 'warn' && /RESULTADOS dice "AGOSTO 2026"/.test(a.text))).toBe(true);
+    // Sin mes en el nombre, METAS (septiembre) confirma agosto: no hay aviso.
+    const ok = parseFile(buf('ejemplo-agosto-2026.xlsx'), 'INDICADORES.xlsx');
+    expect(ok.month).toBe('AGOSTO 2026');
+    expect(ok.alerts.some((a) => /título de RESULTADOS/.test(a.text))).toBe(false);
+  });
+
+  it('sin mes en el nombre, deduce el mes de la hoja METAS', () => {
+    const wb = XLSX.read(buf('ejemplo-agosto-2026.xlsx'));
+    XLSX.utils.sheet_add_aoa(wb.Sheets.METAS, [[null, 'METAS MES NOVIEMBRE']], { origin: 'A1' });
+    const r = parseWorkbook(wb, 'INDICADORES.xlsx');
+    expect(r.month).toBe('OCTUBRE 2026');
+  });
+
+  it('lee hojas nuevas con encabezados escritos distinto y avisa de las que no reconoce', () => {
+    const wb = XLSX.read(buf('ejemplo-agosto-2026.xlsx'));
+    const laura = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets['LAURA MENDEZ'], { header: 1, defval: null });
+    const ana = laura.map((row) => row.map((v) => (v === 'INDICADOR' ? 'INDICADORES' : v === 'VALORACION' ? 'VALORACIÓN' : v)));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ana), 'ANA RIVAS');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Vendedor nuevo', 'Ventas'], ['Pedro', 10]]), 'PEDRO');
+    const r = parseWorkbook(wb, 'ejemplo-agosto-2026.xlsx');
+    const s = r.sellers.find((x) => x.sheet === 'ANA RIVAS');
+    expect(s?.sacos.meta).toBe(3500);
+    expect(s?.blocks[0].score).toBeGreaterThan(0);
+    expect(r.alerts.some((a) => /La hoja "PEDRO" no se leyó/.test(a.text))).toBe(true);
+  });
+
+  it('cobranza, cartera y nuevos clientes se premian por valor absoluto', () => {
+    const checks = checkAwards(ago);
+    const ct = (line: string) => checks.find((c) => c.key === 'CT' && c.award.line === line)!;
+    expect(ct('Pegutil').status).toBe('ok');
+    expect(ct('Pruven').status).toBe('mismatch');
+    expect(ct('Pruven').detail).toMatch(/gana Mario Torrealba \(6\.480,75 cobrados\)/);
+    const ac = checks.find((c) => c.key === 'AC' && c.award.line === 'Pegutil')!;
+    expect(ac.detail).toMatch(/58 clientes atendidos/);
+    expect(checks.find((c) => c.key === 'ANC' && c.award.line === 'Pegutil')!.status).toBe('tie');
   });
 });

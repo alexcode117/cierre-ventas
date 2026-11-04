@@ -47,19 +47,53 @@ export function kpiPct(s: Seller, line: Line, key: Exclude<KpiKey, 'PROD'>): num
   return c?.obj ? pct(c.real, c.obj / RULES.carteraObjetivo) : null;
 }
 
-const METRIC: Record<AwardKey, { label: string; show: (v: number) => string }> = {
-  CV: { label: 'crecimiento en ventas sobre la meta', show: (v) => `${fmt(v, 1)}%` },
-  CT: { label: 'cobranza a tiempo', show: (v) => `${fmt(v)}%` },
-  AC: { label: 'atención de cartera', show: (v) => `${fmt(v, 1)}% de la cartera` },
-  ANC: { label: 'activación de nuevos clientes', show: (v) => `${fmt(v)}% de la meta` },
+// Crecimiento en ventas se mide en % de la meta; cobranza, cartera y nuevos clientes en valor absoluto
+// (el vendedor que más cobró, más clientes atendió y más clientes nuevos activó).
+const METRIC: Record<AwardKey, { label: string; best: string; show: (v: number) => string }> = {
+  CV: { label: 'crecimiento en ventas sobre la meta', best: 'tiene el mayor crecimiento en ventas sobre la meta', show: (v) => `${fmt(v, 1)}%` },
+  CT: { label: 'monto cobrado', best: 'es quien más cobró', show: (v) => `${fmt(v, 2)} cobrados` },
+  AC: { label: 'clientes de la cartera atendidos', best: 'es quien más clientes de la cartera atendió', show: (v) => `${fmt(v)} clientes atendidos` },
+  ANC: { label: 'clientes nuevos activados', best: 'es quien más clientes nuevos activó', show: (v) => `${fmt(v)} clientes nuevos` },
 };
 
+const CALC_KIND = { CT: 'cobranza', AC: 'cartera', ANC: 'nuevos' } as const;
+const NO_DATA: Record<AwardKey, string> = {
+  CV: 'No hay datos de crecimiento en ventas.',
+  CT: 'El archivo no trae el monto cobrado por vendedor (en CALCULOS, el bloque "META COBRANZA" con la columna "Cobrado").',
+  AC: 'No hay datos de clientes atendidos.',
+  ANC: 'No hay datos de clientes nuevos.',
+};
+
+interface Candidate { id: string; name: string; v: number }
+
+const firstToken = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim().split(/\s+/)[0] ?? '';
+/** Identifica a una persona por su hoja si la tiene ("Acarigua" → hoja ACARIGUA) o por su nombre de pila. */
+const idOf = (report: MonthReport, name: string) => {
+  const s = findSeller(report, name);
+  return s ? `hoja:${s.sheet}` : `nombre:${firstToken(name)}`;
+};
+
+/** Valores de cada vendedor para un premio: CALCULOS cuando lo trae (incluye a quien no tiene hoja), si no, las hojas. */
+function candidates(report: MonthReport, line: Line, key: AwardKey): Candidate[] {
+  if (key !== 'CV') {
+    const calc = report.calc.filter((e) => e.kind === CALC_KIND[key] && e.line === line && !e.team && e.real != null);
+    if (calc.length || key === 'CT')
+      return calc.map((e) => ({ id: idOf(report, e.who), name: findSeller(report, e.who)?.display ?? titleCase(e.who), v: e.real! }));
+  }
+  const value = (s: Seller): number | null => {
+    if (key === 'CV') return kpiPct(s, line, key);
+    const b = s.blocks.find((x) => x.line === line);
+    const re = key === 'AC' ? /CARTERA/i : /NUEVOS CLIENTES/i;
+    return (b?.items.find((i) => i.kpi === key) ?? b?.items.find((i) => re.test(i.name)))?.real ?? null;
+  };
+  return report.sellers.flatMap((s) => { const v = value(s); return v == null ? [] : [{ id: `hoja:${s.sheet}`, name: s.display, v }]; });
+}
+
 function leaders(report: MonthReport, line: Line, key: AwardKey) {
-  const value = (s: Seller): number | null => kpiPct(s, line, key);
-  const vals = report.sellers.map((s) => ({ s, v: value(s) })).filter((x): x is { s: Seller; v: number } => x.v != null);
+  const vals = candidates(report, line, key);
   if (!vals.length) return null;
   const best = Math.max(...vals.map((x) => x.v));
-  return { vals, best, top: vals.filter((x) => Math.abs(x.v - best) < 1e-9).map((x) => x.s) };
+  return { vals, best, top: vals.filter((x) => Math.abs(x.v - best) < 1e-9) };
 }
 
 /**
@@ -74,17 +108,18 @@ export function checkAwards(report: MonthReport): AwardCheck[] {
     if (!key) return { ...base, status: 'unverifiable', detail: 'Criterio no reconocido en el procedimiento.' };
     const m = METRIC[key];
     const l = leaders(report, award.line, key);
-    if (!l) return { ...base, status: 'unverifiable', detail: `No hay datos de ${m.label}.` };
-    const winner = findSeller(report, award.ejecutivo);
-    const names = l.top.map((s) => s.display).join(' y ');
-    if (!winner) return { ...base, status: 'mismatch', detail: `"${titleCase(award.ejecutivo)}" no coincide con ninguna hoja de vendedor. Según el procedimiento gana ${names} (${m.show(l.best)}).` };
+    if (!l) return { ...base, status: 'unverifiable', detail: NO_DATA[key] };
+    const id = idOf(report, award.ejecutivo);
+    const mine = l.vals.find((x) => x.id === id);
+    const names = l.top.map((x) => x.name).join(' y ');
+    if (!mine && !findSeller(report, award.ejecutivo))
+      return { ...base, status: 'mismatch', detail: `"${titleCase(award.ejecutivo)}" no coincide con ningún vendedor. Según los datos gana ${names} (${m.show(l.best)}).` };
     if (key === 'CV' && l.best < 100) return { ...base, status: 'mismatch', detail: `Nadie superó la meta (mejor: ${names} con ${m.show(l.best)}); el procedimiento asigna este incentivo solo por encima del 100%.` };
-    if (l.top.includes(winner)) {
+    if (l.top.some((x) => x.id === id)) {
       if (l.top.length > 1) return { ...base, status: 'tie', detail: `Empate en ${m.label}: ${names} con ${m.show(l.best)}. El procedimiento no define desempate.` };
-      return { ...base, status: 'ok', detail: `${winner.display} tiene el mejor resultado en ${m.label} (${m.show(l.best)}).` };
+      return { ...base, status: 'ok', detail: `${mine!.name} ${m.best} (${m.show(l.best)}).` };
     }
-    const wv = l.vals.find((x) => x.s === winner)?.v;
-    return { ...base, status: 'mismatch', detail: `Según el procedimiento gana ${names} (${m.show(l.best)}); ${winner.display} tiene ${wv != null ? m.show(wv) : 'sin dato'}.` };
+    return { ...base, status: 'mismatch', detail: `Según los datos gana ${names} (${m.show(l.best)}); ${mine?.name ?? titleCase(award.ejecutivo)} tiene ${mine ? m.show(mine.v) : 'sin dato'}.` };
   });
 
   // Premios de la tabla oficial que el Excel no asignó
@@ -93,7 +128,7 @@ export function checkAwards(report: MonthReport): AwardCheck[] {
     for (const inc of INCENTIVES[line]) {
       if (checks.some((c) => c.award.line === line && c.key === inc.key)) continue;
       const l = leaders(report, line, inc.key);
-      const who = l ? (l.top.length > 1 ? `empate entre ${l.top.map((s) => s.display).join(' y ')}` : l.top[0].display) : null;
+      const who = l ? (l.top.length > 1 ? `empate entre ${l.top.map((x) => x.name).join(' y ')}` : l.top[0].name) : null;
       checks.push({
         award: { line, criterio: inc.label, ejecutivo: '', pct: null },
         key: inc.key,

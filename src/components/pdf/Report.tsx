@@ -7,7 +7,7 @@ import type { TeamMetric } from '@/lib/analysis';
 import type { LoadedFile, Session } from '@/lib/load';
 import { applyProcedure } from '@/lib/procedure';
 import { INCENTIVES, KPI_LABEL, rulesText } from '@/lib/rules';
-import type { Insight, Status } from '@/lib/types';
+import type { Status } from '@/lib/types';
 
 // Helvetica (fuente estándar del PDF) solo cubre Latin-1: se reemplazan los símbolos que no incluye.
 const t = (s: string | number) =>
@@ -23,7 +23,6 @@ const C = {
 const AWARD_C: Record<AwardStatus, [string, string]> = { ok: [C.goodBg, C.goodInk], tie: [C.warnBg, C.warnInk], mismatch: [C.critBg, C.critInk], unverifiable: [C.line2, C.ink2], missing: [C.critBg, C.critInk] };
 const STATUS_C: Record<Status, [string, string]> = { PRODUCTIVO: [C.goodBg, C.goodInk], ESTABLE: [C.warnBg, C.warnInk], CRITICO: [C.critBg, C.critInk] };
 const BAND_C = { good: [C.goodBg, C.goodInk], warn: [C.warnBg, C.warnInk], crit: [C.critBg, C.critInk], none: ['#ffffff', C.ink3] } as const;
-const SEV_C = { crit: C.crit, warn: C.warn, good: C.good, info: C.accent };
 
 const st = StyleSheet.create({
   page: { paddingTop: 44, paddingBottom: 54, paddingHorizontal: 40, fontFamily: 'Helvetica', fontSize: 9.5, color: C.ink },
@@ -78,18 +77,6 @@ function HBar({ label, sub, value, max, color, meta, prev, right }: { label: str
   );
 }
 
-function InsightRow({ i }: { i: Insight }) {
-  return (
-    <View style={[st.row, { marginBottom: 6 }]} wrap={false}>
-      <View style={{ width: 3, backgroundColor: SEV_C[i.sev], marginRight: 8, borderRadius: 1 }} />
-      <View style={{ flex: 1 }}>
-        <Text style={[st.bold, { fontSize: 9.5 }]}>{t(i.title)}</Text>
-        <Text style={{ color: C.ink2, fontSize: 8.5 }}>{t(i.body)}</Text>
-      </View>
-    </View>
-  );
-}
-
 function Kpi({ label, value, sub, extra }: { label: string; value: string; sub: string; extra?: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.panel, borderRadius: 4, padding: 9 }}>
@@ -118,7 +105,6 @@ export default function ReportDoc({ s }: { s: Session }) {
   const R = d.results;
   const month = titleCase(d.month ?? 'Mes sin identificar');
   const prevShort = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')).toLowerCase() : '';
-  const insights = s.insights;
   const proc = s.basis === 'procedimiento' ? d : applyProcedure(s.source.cur.report);
   const when = s.generatedAt.toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
   const zonas = R?.zonas ?? [];
@@ -185,10 +171,6 @@ export default function ReportDoc({ s }: { s: Session }) {
       {/* 2 · Resumen */}
       <Page size="A4" style={st.page}>
         <View style={st.body}>
-        <Section title="Hallazgos del mes" sub={`${insights.length} hallazgos calculados a partir de los datos, ordenados por prioridad`}>
-          {insights.map((i) => <InsightRow key={i.title} i={i} />)}
-        </Section>
-
         <Section title="Ranking de vendedores" sub="Puntaje por línea sobre 12; total sobre 24" wrap={false}>
           <View style={[st.row, { borderBottomWidth: 0.5, borderBottomColor: C.line }]}>
             {['#', 'Vendedor', 'Zona', 'Pegutil', 'Pruven', 'Total', c ? `vs ${prevShort}` : '', 'Estado'].map((h, i) => (

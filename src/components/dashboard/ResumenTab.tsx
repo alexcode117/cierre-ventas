@@ -2,48 +2,25 @@
 
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Info, TrendingUp, X } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { fmt, STATUS_LABEL, titleCase } from '@/lib/format';
 import type { TeamMetric } from '@/lib/analysis';
 import type { Session } from '@/lib/load';
-import type { Insight, Status } from '@/lib/types';
+import type { Status } from '@/lib/types';
 import { DumbbellChart, PointLossChart } from '../charts/charts';
 import { Card, CountUp, Delta, SectionHead } from '../ui';
 import type { TabKey } from './Dashboard';
 
-const SEV = {
-  crit: { label: 'Atender primero', icon: <X size={13} strokeWidth={2.5} />, chip: 'bg-crit text-white', rule: 'bg-crit' },
-  warn: { label: 'Revisar', icon: <AlertTriangle size={13} strokeWidth={2.5} />, chip: 'bg-warn text-white', rule: 'bg-warn' },
-  good: { label: 'Va bien', icon: <TrendingUp size={13} strokeWidth={2.5} />, chip: 'bg-good text-white', rule: 'bg-good' },
-  info: { label: 'Para tener en cuenta', icon: <Info size={13} strokeWidth={2.5} />, chip: 'bg-ink-3 text-white', rule: 'bg-ink-3' },
-} as const;
-const SEV_ORDER = ['crit', 'warn', 'good', 'info'] as const;
 const STATUS_TILE: Record<Status, string> = { PRODUCTIVO: 'bg-good', ESTABLE: 'bg-warn', CRITICO: 'bg-crit' };
 const EASE = [0.16, 1, 0.3, 1] as const;
-
-function InsightRow({ i }: { i: Insight }) {
-  return (
-    <li className="grid gap-1 border-t border-line-2 px-4.5 py-3.5 first:border-t-0">
-      <h4 className="text-[15px] leading-snug font-semibold">{i.title}</h4>
-      <p className="max-w-[70ch] text-[13.5px] leading-relaxed text-ink-2">{i.body}</p>
-      {i.tags.length > 0 && (
-        <div className="mt-0.5 flex flex-wrap gap-1.5">
-          {i.tags.map((t) => <span key={t} className="rounded-full bg-panel-2 px-2 py-px text-[11.5px] font-medium text-ink-3">{t}</span>)}
-        </div>
-      )}
-    </li>
-  );
-}
 
 export default function ResumenTab({ session, onGo }: { session: Session; onGo: (t: TabKey) => void }) {
   const { cur, analysis: a, comparison: c } = session;
   const d = cur.report;
   const count = (s: Status) => d.sellers.filter((x) => x.status === s).length;
-  const insights = session.insights;
   const prevLabel = c ? titleCase(c.prevMonth.replace(/\s*20\d\d/, '')) : '';
   const curLabel = titleCase((d.month ?? 'Este mes').replace(/\s*20\d\d/, ''));
   const vsPrev = (m: TeamMetric) => `${m.excluded.length ? 'del total ' : ''}vs ${prevLabel.toLowerCase()}`;
-  const groups = SEV_ORDER.map((sev) => ({ sev, items: insights.filter((i) => i.sev === sev) })).filter((g) => g.items.length);
   // La cinta llega hasta el mayor % del mes (mínimo 150%), en tramos de 10%.
   const tapeMax = Math.min(250, Math.max(150, Math.ceil(Math.max(a.team.sacos.pct ?? 0, a.team.galones.pct ?? 0) / 10) * 10 + 10));
 
@@ -79,22 +56,6 @@ export default function ResumenTab({ session, onGo }: { session: Session; onGo: 
             </ul>
           </div>
         </Card>
-      </section>
-
-      <section className="grid gap-3">
-        <SectionHead title="Hallazgos del mes" sub={`${insights.length} hallazgos calculados a partir de los datos, agrupados por prioridad`} />
-        <div className="gap-3 md:columns-2">
-          {groups.map((g) => (
-            <Card key={g.sev} className="mb-3 break-inside-avoid overflow-hidden">
-              <h3 className="flex items-center gap-2.5 border-b border-line px-4.5 py-2.5 text-[14px] font-bold">
-                <span className={clsx('grid size-[22px] place-items-center rounded-full', SEV[g.sev].chip)} aria-hidden>{SEV[g.sev].icon}</span>
-                {SEV[g.sev].label}
-                <span className="ml-auto text-[13px] font-semibold text-ink-3">{g.items.length}</span>
-              </h3>
-              <ul>{g.items.map((i) => <InsightRow key={i.title} i={i} />)}</ul>
-            </Card>
-          ))}
-        </div>
       </section>
 
       {c && c.sellers.size > 0 && (
