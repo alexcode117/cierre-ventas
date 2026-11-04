@@ -12,26 +12,31 @@ const PRODUCTS = [
   ['VENTAS OXIDO', 'oxido'],
 ];
 
-const statusOf = (s) => (s >= 10 ? 'PRODUCTIVO' : s >= 4 ? 'ESTABLE' : 'CRITICO');
+const statusOf = (s) => (s > 9 ? 'PRODUCTIVO' : s > 3 ? 'ESTABLE' : 'CRITICO');
 
-function row(name, obj, real, max, override = {}) {
+// Tramos del procedimiento (13/10/2026), como los aplica el libro. Los productos Pruven valen 0,5 desde el 80%.
+const TIERS = { CV: [[100, 3], [90, 2], [80, 1]], CT: [[100, 3], [90, 2], [80, 1]], AC: [[70, 3], [60, 2], [50, 1]], ANC: [[100, 3], [50, 1.5]] };
+const points = (kind, pct) => (kind === 'PROD' ? (pct >= 80 ? 0.5 : 0) : (TIERS[kind].find(([min]) => pct >= min)?.[1] ?? 0));
+
+// `override.pts` siembra un puntaje que no corresponde a la regla.
+function row(name, obj, real, kind, override = {}) {
   const pct = (real / obj) * 100;
-  const ok = override.ok ?? (/COBRANZA/.test(name) ? real / obj >= 0.9 : pct >= 100);
-  return [null, name, obj, real, pct, ok ? 'SI' : 'NO', ok ? max : 0];
+  const pts = override.pts ?? points(kind, pct);
+  return [null, name, obj, real, pct, pts === (kind === 'PROD' ? 0.5 : 3) ? 'SI' : 'NO', pts];
 }
 
 function sellerSheet(s) {
   const peg = [
-    row('VENTAS (SACOS)', s.peg.sacos[0], s.peg.sacos[1], 3, s.peg.sacosOverride),
-    row('COBRANZA META PEGUTIL', 1, s.peg.cobr, 3),
-    row('NUEVOS CLIENTES  PEGUTIL', 2, s.peg.nc, 3),
-    row('ATENCION DE CARTERA (70%)', s.peg.cart[0], s.peg.cart[1], 3),
+    row('VENTAS (SACOS)', s.peg.sacos[0], s.peg.sacos[1], 'CV', s.peg.sacosOverride),
+    row('COBRANZA META PEGUTIL', 1, s.peg.cobr, 'CT', s.peg.cobrOverride),
+    row('NUEVOS CLIENTES  PEGUTIL', 2, s.peg.nc, 'ANC'),
+    row('ATENCION DE CARTERA (70%)', s.peg.cart[0], s.peg.cart[1], 'AC'),
   ];
   const pru = [
-    ...PRODUCTS.map(([n, k]) => row(n, s.pru[k][0], s.pru[k][1], 0.5)),
-    row('COBRANZA META PRUVEN', 1, s.pru.cobr, 3),
-    row('NUEVOS CLIENTES  PRUVEN', 2, s.pru.nc, 3),
-    row('ATENCION DE CARTERA (70%)', s.pru.cart[0], s.pru.cart[1], 3),
+    ...PRODUCTS.map(([n, k]) => row(n, s.pru[k][0], s.pru[k][1], 'PROD')),
+    row('COBRANZA META PRUVEN', 1, s.pru.cobr, 'CT'),
+    row('NUEVOS CLIENTES  PRUVEN', 2, s.pru.nc, 'ANC'),
+    row('ATENCION DE CARTERA (70%)', s.pru.cart[0], s.pru.cart[1], 'AC'),
   ];
   const sum = (rows) => rows.reduce((a, r) => a + r[6], 0);
   const pegScore = sum(peg), pruScore = sum(pru);
@@ -127,7 +132,7 @@ const agosto = [
     pru: base({ caucho: [700, 640], mantutil: [100, 104], esmaltes: [120, 61], utiltop: [32, 35.2], metyl: [7, 4], oxido: [144, 80], cobr: 0.9, nc: 3, cart: [44.8, 35] }),
     galMeta: 1100, galones: 924.2, cobrado: [13950, 6480.75] },
   { sheet: 'PATRICIA YANEZ', corto: 'PATRICIA', vendedor: 'Patricia Yánez', zona: 'Centro Este', zonaTitulo: 'CENTRO ESTE',
-    peg: { sacos: [2800, 2510], cobr: 0.8, nc: 5, cart: [42, 25], sacosOverride: { ok: true } },
+    peg: { sacos: [2800, 2510], cobr: 0.8, nc: 5, cart: [42, 25], sacosOverride: { pts: 3 }, cobrOverride: { pts: 3 } },
     pru: base({ caucho: [600, 310], mantutil: [80, 76], esmaltes: [100, 88.5], utiltop: [32, 44.1], metyl: [7, 8.5], oxido: [144, 41], cobr: 0.9, nc: 2, cart: [42, 35] }),
     galMeta: 960, galones: 568.1, sacosResultados: 2632, cobrado: [4100.3, 2900] },
   { sheet: 'ZONA LLANOS', corto: '', vendedor: '-', zona: 'Llanos', zonaTitulo: 'ZONA LLANOS',

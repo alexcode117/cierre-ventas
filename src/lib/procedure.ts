@@ -1,4 +1,4 @@
-import { KPI_LABEL, RULES, statusOf, tierPoints } from './rules';
+import { KPI_LABEL, statusOf, tierPoints } from './rules';
 import type { Block, Item, KpiKey, MonthReport, Seller, Status } from './types';
 
 /**
@@ -38,8 +38,8 @@ function evaluateSeller(s: Seller, d: MonthReport): Seller {
     const cob = find(/COBRANZA/);
     if (cob) items.push(kpiItem('CT', `${KPI_LABEL.CT} ${b.line}`, cob.obj, cob.real, cob.pts));
     const car = find(/CARTERA/);
-    // El objetivo del Excel es el 70% de la cartera: la cartera total es objetivo ÷ 0,7.
-    if (car) items.push(kpiItem('AC', KPI_LABEL.AC, car.obj != null ? car.obj / RULES.carteraObjetivo : null, car.real, car.pts));
+    // Como en el Excel, contra su objetivo (el 70% de la cartera).
+    if (car) items.push(kpiItem('AC', KPI_LABEL.AC, car.obj, car.real, car.pts));
     const nc = find(/NUEVOS CLIENTES/);
     if (nc) items.push(kpiItem('ANC', `Nuevos clientes ${b.line}`, nc.obj, nc.real, nc.pts));
     if (b.line === 'Pruven')

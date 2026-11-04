@@ -9,7 +9,7 @@ import { parseFile, parseWorkbook, ParseError } from '../src/lib/parser';
 import { applyProcedure, basisDiffs } from '../src/lib/procedure';
 import { pctDiffers } from '../src/lib/awards';
 import { buildSession, type LoadedFile } from '../src/lib/load';
-import { statusOf } from '../src/lib/rules';
+import { rulePoints, scoreAt, statusOf, tierPoints } from '../src/lib/rules';
 
 const load = (f: string) => {
   const b = readFileSync(`public/ejemplos/${f}`);
@@ -31,9 +31,9 @@ describe('parser', () => {
 
   it('calcula puntajes y estados por línea', () => {
     const laura = ago.sellers[0];
-    expect(laura.blocks.map((b) => [b.line, b.score])).toEqual([['Pegutil', 12], ['Pruven', 11.5]]);
+    expect(laura.blocks.map((b) => [b.line, b.score])).toEqual([['Pegutil', 11], ['Pruven', 10.5]]);
     expect(laura.status).toBe('PRODUCTIVO');
-    expect(ago.sellers.find((s) => s.sheet === 'ZONA LLANOS')?.status).toBe('CRITICO');
+    expect(ago.sellers.find((s) => s.sheet === 'ZONA LLANOS')?.status).toBe('ESTABLE'); // 3,5 y 5 pts: promedio 4,25
   });
 
   it('detecta las inconsistencias sembradas en el ejemplo', () => {
@@ -55,7 +55,7 @@ describe('análisis', () => {
   it('genera hallazgos priorizados', () => {
     expect(a.insights.length).toBeGreaterThan(4);
     expect(a.insights[0].sev).toBe('crit');
-    expect(a.insights.some((i) => /Ventas Oxido: falla en 4 de 4/.test(i.title))).toBe(true);
+    expect(a.insights.some((i) => /Cobranza: falla en 4 de 4/.test(i.title))).toBe(true);
   });
   it('evalúa las metas del próximo mes', () => {
     expect(a.plan.find((p) => p.vendedor === 'Llanos')?.risk).toBe('alto');
@@ -103,7 +103,8 @@ describe('auditoría', () => {
   it('1.3 un CUMPLE que contradice la regla y cambia el estado es crítico', () => {
     const al = ago.alerts.find((x) => /Patricia Yanez · Pegutil: el Excel asigna puntos/.test(x.text));
     expect(al?.level).toBe('crit');
-    expect(al?.text).toMatch(/pasa de 6 a 3 pts y de Estable a Crítico/);
+    expect(al?.text).toMatch(/COBRANZA META PEGUTIL al 80% recibe 3 pts y le corresponden 1/);
+    expect(al?.text).toMatch(/pasa de 10 a 6 pts y de Productivo a Estable/);
   });
 
   it('1.5 lee CALCULOS y detecta sus diferencias', () => {
@@ -138,22 +139,34 @@ describe("procedimiento de KPI's", () => {
   const seller = (sheet: string) => proc.sellers.find((s) => s.sheet === sheet)!;
   const kpi = (sheet: string, line: string, k: string) => seller(sheet).blocks.find((b) => b.line === line)!.items.find((i) => i.kpi === k)!;
 
-  it('puntúa por tramos 3/1/0', () => {
-    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').pts).toBe(1); // cobranza 95% → 1 pt (el Excel daba 3)
-    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').excelPts).toBe(3);
-    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CV').pts).toBe(0); // sacos 89,6%: bajo el tramo de 90% → 0 (el Excel daba 3)
+  it('puntúa por tramos 3/2/1/0 (nuevos clientes 3/1,5/0)', () => {
+    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').pts).toBe(2); // cobranza 95% → 2 pts, igual que el Excel
+    expect(kpi('LAURA MENDEZ', 'Pegutil', 'CT').excelPts).toBe(2);
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CV').pts).toBe(1); // sacos 89,6% → 1 pt (el Excel sembrado da 3)
     expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CV').excelPts).toBe(3);
     expect(kpi('ZONA LLANOS', 'Pegutil', 'CV').pts).toBe(0); // 62% → 0
-    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CT').pts).toBe(0); // 80% → 0
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'CT').pts).toBe(1); // 80% → 1
+    expect(kpi('ZONA LLANOS', 'Pegutil', 'ANC').pts).toBe(1.5); // 50% → 1,5
+    expect(tierPoints('AC', 65)).toBe(2);
+    expect(tierPoints('ANC', 75)).toBe(1.5);
+    expect(tierPoints('CV', 79.9)).toBe(0);
   });
 
-  it('mide atención de cartera sobre la cartera total (objetivo ÷ 0,7)', () => {
+  it('mide atención de cartera contra su objetivo, como el Excel', () => {
     const ac = kpi('LAURA MENDEZ', 'Pegutil', 'AC');
-    expect(ac.obj).toBeCloseTo(43.4 / 0.7, 6);
-    expect(ac.pct).toBeCloseTo((47 / (43.4 / 0.7)) * 100, 6);
+    expect(ac.obj).toBe(43.4);
+    expect(ac.pct).toBeCloseTo((47 / 43.4) * 100, 6);
     expect(ac.pts).toBe(3);
-    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'AC').pts).toBe(0); // 25 de 60 clientes = 41,7% → 0
-    expect(kpi('MARIO TORREALBA', 'Pruven', 'AC').pts).toBe(1); // 35 de 64 = 54,7% → 1
+    expect(kpi('PATRICIA YANEZ', 'Pegutil', 'AC').pts).toBe(1); // 25 de 42 = 59,5% → 1
+    expect(kpi('ZONA LLANOS', 'Pegutil', 'AC').pts).toBe(0); // 45,1% → 0
+  });
+
+  it('en el Excel, cada producto Pruven vale 0,5 desde el 80% de su meta', () => {
+    const pru = ago.sellers.find((s) => s.sheet === 'LAURA MENDEZ')!.blocks.find((b) => b.line === 'Pruven')!;
+    const oxido = pru.items.find((i) => /OXIDO/.test(i.name))!; // 62 de 144 = 43%
+    expect(rulePoints(pru, oxido)).toBe(0);
+    expect(scoreAt(pru, oxido, 80)).toBe(0.5);
+    expect(scoreAt(pru, oxido, 79.9)).toBe(0);
   });
 
   it('mide Pruven por galones totales y deja los productos como informativos', () => {
@@ -167,14 +180,15 @@ describe("procedimiento de KPI's", () => {
 
   it('usa los umbrales de estado del procedimiento y registra las diferencias con el Excel', () => {
     const laura = seller('LAURA MENDEZ');
-    expect(laura.blocks.map((b) => b.score)).toEqual([10, 10]);
+    expect(laura.blocks.map((b) => b.score)).toEqual([11, 11]);
     expect(laura.blocks.every((b) => b.status === 'PRODUCTIVO')).toBe(true);
     expect(basisDiffs(proc).length).toBeGreaterThan(0);
   });
 
   it('valida los incentivos contra la tabla oficial', () => {
     const checks = checkAwards(proc);
-    expect(checks.find((c) => c.key === 'CV' && c.award.line === 'Pegutil' && pctDiffers(c))?.officialPct).toBe(0.65);
+    expect(checks.find((c) => c.key === 'CV' && c.award.line === 'Pruven' && pctDiffers(c))?.officialPct).toBe(0.7); // el Excel paga 0,6
+    expect(checks.some((c) => c.key === 'CV' && c.award.line === 'Pegutil' && pctDiffers(c))).toBe(false);
     expect(checks.filter((c) => c.status === 'missing')).toEqual([]); // "Mejor manejo de variables" no se usa
   });
 

@@ -107,7 +107,7 @@ export default function Dashboard({ session, onReset, onBasis }: { session: Sess
 
       <p className="max-w-[90ch] border-t border-line pt-4 text-[12.5px] leading-relaxed text-ink-3">
         {rulesText(session.basis)}{' '}
-        {session.basis === 'procedimiento' ? 'Colores de los indicadores: verde 3 pts, ámbar 1 pt, rojo 0 pts.' : 'Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.'}
+        {session.basis === 'procedimiento' ? 'Colores de los indicadores: verde 3 pts, ámbar de 1 a 2 pts, rojo 0 pts.' : 'Colores de cumplimiento: verde 100% o más, ámbar 80 a 99%, rojo menos de 80%.'}
       </p>
     </motion.div>
   );

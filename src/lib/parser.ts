@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { checkCalculos, parseCalculos } from './calculos';
 import { fmt, MESES, monthKey, STATUS_LABEL } from './format';
-import { rulePoints, statusOf, statusScaleText, thresholdOf } from './rules';
+import { rulePoints, statusOf, statusScaleText } from './rules';
 import type { Award, Block, DataAlert, Item, Line, Metas, MonthReport, Results, Seller, Status, Zona } from './types';
 
 type Cell = string | number | boolean | Date | null;
@@ -281,7 +281,7 @@ function checkConsistency(out: MonthReport) {
       if (wrong.length) {
         const ruleScore = b.items.reduce((a, i) => a + rulePoints(b, i), 0);
         const ruleStatus = statusOf(ruleScore);
-        const list = wrong.map((i) => `${i.name} al ${fmt(i.pct, 1)}% recibe ${fmt(i.pts, 1)} pts (umbral ${thresholdOf(i)}%)`).join('; ');
+        const list = wrong.map((i) => `${i.name} al ${fmt(i.pct, 1)}% recibe ${fmt(i.pts, 1)} pts y le corresponden ${fmt(rulePoints(b, i), 1)}`).join('; ');
         add(ruleStatus !== b.status ? 'crit' : 'warn',
           `${s.display} · ${b.line}: el Excel asigna puntos que no corresponden a la regla (${list}). Con la regla, ${b.line} pasa de ${fmt(b.score, 1)} a ${fmt(ruleScore, 1)} pts${ruleStatus !== b.status ? ` y de ${STATUS_LABEL[b.status]} a ${STATUS_LABEL[ruleStatus]}` : ''}.`);
       }

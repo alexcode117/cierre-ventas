@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, RotateCcw, Wand2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { itemBand, fmt, prettyItem, ptsLabel } from '@/lib/format';
-import { nextStep, rulePoints, rulesText, scoreAt, STATUS_THRESHOLDS, statusOf, thresholdOf } from '@/lib/rules';
+import { nextStep, rulePoints, rulesText, scoreAt, STATUS_THRESHOLDS, statusOf } from '@/lib/rules';
 import type { Session } from '@/lib/load';
 import type { Line } from '@/lib/types';
 import { Button, Card, CountUp, SectionHead, Segmented, StatusPill } from '../ui';
@@ -29,9 +29,10 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
       const changed = sim[k] != null && sim[k] !== it.real;
       const pts = changed || basis === 'regla' ? scoreAt(b, it, pct) : it.pts;
       // Con el procedimiento se marca dónde el Excel daba otros puntos; con la base Excel, dónde el Excel no sigue su propia regla.
-      const offRule = proc ? it.kpi !== 'PROD' && it.excelPts != null && it.excelPts !== it.pts : it.pct != null && rulePoints(b, it) !== it.pts;
+      const rulePts = rulePoints(b, it);
+      const offRule = proc ? it.kpi !== 'PROD' && it.excelPts != null && it.excelPts !== it.pts : it.pct != null && rulePts !== it.pts;
       score += pts;
-      return { it, k, real, pct, pts, changed, offRule };
+      return { it, k, real, pct, pts, changed, offRule, rulePts };
     });
     return { b, items, score, status: statusOf(score, session.basis) };
   }) ?? [], [s, sim, basis, proc, session.basis]);
@@ -90,7 +91,7 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
                 return (
                   <div key={x.k} className={clsx('grid grid-cols-[1fr_70px_56px] items-center gap-x-3 gap-y-1 border-t border-line-2 px-4.5 py-2 text-[13.5px] transition-colors sm:grid-cols-[minmax(130px,1.1fr)_minmax(120px,1.4fr)_84px_62px]', x.changed && 'bg-accent-soft')}>
                     <label htmlFor={`sim-${x.k}`} className="min-w-0">{prettyItem(x.it.name)}<small className="block text-[11.5px] text-ink-3">Objetivo {show(obj)}, real {show(x.it.real ?? 0)}</small>
-                      {x.offRule && <small className="mt-0.5 block text-[11.5px] font-medium text-warn-ink">{proc ? `El Excel le da ${fmt(x.it.excelPts, 1)} pts; el procedimiento, ${fmt(x.it.pts, 1)}` : `El Excel le da ${fmt(x.it.pts, 1)} pts con ${fmt(x.it.pct, 1)}% (la regla pide ${thresholdOf(x.it)}%)`}</small>}
+                      {x.offRule && <small className="mt-0.5 block text-[11.5px] font-medium text-warn-ink">{proc ? `El Excel le da ${fmt(x.it.excelPts, 1)} pts; el procedimiento, ${fmt(x.it.pts, 1)}` : `El Excel le da ${fmt(x.it.pts, 1)} pts con ${fmt(x.it.pct, 1)}%; por la regla le corresponden ${fmt(x.rulePts, 1)}`}</small>}
                       {x.it.kpi === 'PROD' && <small className="mt-0.5 block text-[11.5px] text-ink-3">Informativo: el procedimiento mide Pruven por galones totales</small>}</label>
                     <input id={`sim-${x.k}`} type="range" min={0} max={max} step={step} value={x.real} onChange={(e) => setSim({ ...sim, [x.k]: +e.target.value })}
                       className="col-span-3 row-start-2 w-full sm:col-span-1 sm:row-start-auto" />
@@ -135,7 +136,7 @@ export default function SimuladorTab({ session, seller, onSeller }: { session: S
           ))}
           <p className="text-[12.5px] text-ink-2">
             {changed ? `${changed} indicador${changed > 1 ? 'es' : ''} modificado${changed > 1 ? 's' : ''}. ` : ''}
-            {proc ? 'Puntos según el procedimiento: 3, 1 o 0 por indicador según el tramo alcanzado.' : basis === 'excel' ? 'Parte de los puntos del Excel; lo que mueva se recalcula con la regla. Ventas Pruven valen 0,5 pts; los demás indicadores, 3 pts.' : 'Todos los indicadores se recalculan con la regla. Ventas Pruven valen 0,5 pts; los demás indicadores, 3 pts.'}
+            {proc ? 'Puntos según el procedimiento: de 0 a 3 por indicador según el tramo alcanzado.' : basis === 'excel' ? 'Parte de los puntos del Excel; lo que mueva se recalcula con la regla. Ventas Pruven valen 0,5 pts desde el 80% de su meta; los demás indicadores, de 0 a 3 pts por tramos.' : 'Todos los indicadores se recalculan con la regla. Ventas Pruven valen 0,5 pts desde el 80% de su meta; los demás indicadores, de 0 a 3 pts por tramos.'}
           </p>
         </Card>
       </div>

@@ -31,7 +31,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
         <span className="eyebrow">Norma de referencia</span>
         <h2 className="display text-2xl font-bold">Procedimiento para cálculo de KPI&apos;s e incentivos para ventas</h2>
         <p className="max-w-[75ch] text-[14px] text-ink-2">
-          Elaborado el 08/01/2025 para Pegamentos Útiles de Venezuela (Pegutil) y Productos Útiles de Venezuela (Pruven). Mide cuatro indicadores por empresa con tramos de 3, 1 y 0 puntos; su suma define el estado del vendedor.
+          Modificado el 13/10/2026 para Pegamentos Útiles de Venezuela (Pegutil) y Productos Útiles de Venezuela (Pruven). Mide cuatro indicadores por empresa con tramos de 0 a 3 puntos; su suma define el estado del vendedor.
         </p>
         <div className="flex flex-wrap items-center gap-3 text-[13px]">
           <span className="text-ink-2">El dashboard está usando: <b className="text-ink">{session.basis === 'procedimiento' ? 'el procedimiento' : 'los puntos del Excel'}</b>.</span>
@@ -81,7 +81,7 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
           </table>
         </Card>
         <p className="text-[12.5px] text-ink-3">
-          En Pruven, la columna Excel de crecimiento suma los puntos de las ventas por producto (6 × 0,5). La atención de cartera se calcula sobre la cartera total, estimada como el objetivo del Excel ÷ 0,7 (el Excel fija la meta en el 70% de la cartera).
+          En Pruven, la columna Excel de crecimiento suma los puntos de las ventas por producto (0,5 cada una desde el 80% de su meta). La atención de cartera se mide, como en el Excel, contra su objetivo (el 70% de la cartera).
         </p>
       </motion.section>
 
@@ -94,21 +94,28 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
                 <th className="py-2.5 pr-3 pl-4.5 text-left font-medium">Indicador</th>
                 <th className="px-3 text-left font-medium">Fórmula</th>
                 <th className="px-3 text-center font-medium">3 pts</th>
-                <th className="px-3 text-center font-medium">1 pt</th>
+                <th className="px-3 text-center font-medium">2 pts</th>
+                <th className="px-3 text-center font-medium">1 pt (1,5 en nuevos clientes)</th>
                 <th className="px-3 text-center font-medium">0 pts</th>
               </tr>
             </thead>
             <tbody>
               {KPIS.map((k) => {
                 const tiers = PROCEDURE_TIERS[k];
-                const one = tiers.find(([, p]) => p === 1);
+                // Rango de cada tramo: desde su mínimo hasta el mínimo del tramo de arriba.
+                const range = (pts: number[]) => {
+                  const i = tiers.findIndex(([, p]) => pts.includes(p));
+                  if (i < 0) return '—';
+                  return i === 0 ? `≥ ${tiers[0][0]}%` : `${tiers[i][0]}% a < ${tiers[i - 1][0]}%`;
+                };
                 return (
                   <tr key={k} className="border-b border-line-2 align-top last:border-b-0">
                     <td className="py-2.5 pr-3 pl-4.5 font-semibold whitespace-nowrap">{KPI_LABEL[k]}</td>
                     <td className="px-3 py-2.5 text-ink-2">{FORMULA[k]}</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{k === 'ANC' ? 'Cumple' : `≥ ${tiers[0][0]}%`}</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{one ? `${one[0]}% a ${tiers[0][0]}%` : '—'}</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{k === 'ANC' ? 'No cumple' : `< ${(one ?? tiers[0])[0]}%`}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{range([3])}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{range([2])}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{range([1, 1.5])}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{`< ${tiers.at(-1)![0]}%`}</td>
                   </tr>
                 );
               })}
@@ -130,10 +137,10 @@ export default function ProcedimientoTab({ session, onBasis }: { session: Sessio
           <Card className="grid gap-2 px-4.5 py-4 text-[13.5px]">
             <h3 className="display text-base font-bold">Diferencias con el Excel actual</h3>
             <ul className="list-disc space-y-1 pl-5 text-ink-2">
-              <li>Cobranza del 90% al 99%: el Excel da 3 pts; el procedimiento, 1 pt.</li>
-              <li>Ventas del 90% al 99%: el procedimiento da 1 pt; el Excel, 0 (o 3 si se marcó &quot;SI&quot; a mano).</li>
-              <li>Pruven: el Excel reparte el crecimiento en 6 productos de 0,5 pts; el procedimiento mide los galones totales contra la meta.</li>
-              <li>Atención de cartera: el procedimiento da 1 pt desde el 50% de la cartera; el Excel solo puntúa al llegar al 70%.</li>
+              <li>El Excel aplica los mismos tramos del procedimiento en ventas (Pegutil), cobranza, cartera y nuevos clientes.</li>
+              <li>Pruven: el Excel reparte el crecimiento en ventas por producto, 0,5 pts cada una desde el 80% de su meta; el procedimiento mide los galones totales contra la meta.</li>
+              <li>Atención de cartera: el documento la define sobre el total de clientes de la cartera; la herramienta la mide, como el Excel, contra su objetivo (el 70% de la cartera).</li>
+              <li>Ganadores de los incentivos: crecimiento en ventas por % sobre la meta; cobranza, cartera y nuevos clientes por valor absoluto (monto cobrado y cantidad de clientes).</li>
             </ul>
           </Card>
         </div>

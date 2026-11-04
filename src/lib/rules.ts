@@ -1,22 +1,25 @@
 import type { Basis, Block, Item, KpiKey, Line, Status } from './types';
 
 /**
- * Reglas de puntaje en un solo lugar. Hay dos bases de cálculo:
+ * Reglas de puntaje en un solo lugar, según el "Procedimiento para el cálculo de KPI's e incentivos de
+ * ventas" (modificado el 13/10/2026). El libro INDICADORES ya aplica los mismos tramos, así que hay dos
+ * bases de cálculo que solo difieren en el crecimiento de Pruven:
  *
- * - 'procedimiento' (por defecto): "Procedimiento para cálculo de KPI's e incentivos para ventas",
- *   elaborado el 08/01/2025. Cuatro indicadores por empresa con tramos de 3, 1 y 0 puntos.
- * - 'excel': lo que aplica hoy el libro INDICADORES (cumple con 100%, cobranza con 90%, todo o nada).
+ * - 'procedimiento' (por defecto): el crecimiento de Pruven se mide con los galones totales contra la meta.
+ * - 'excel': los puntos del libro, donde el crecimiento de Pruven se reparte en ventas por producto
+ *   (0,5 pts cada una desde el 80% de su meta).
  *
- * Las usan el lector (para revisar el CUMPLE del Excel), la evaluación según el procedimiento,
+ * Atención de cartera se mide, como en el libro, contra su objetivo (el 70% de la cartera).
+ * Las usan el lector (para revisar los puntos del Excel), la evaluación según el procedimiento,
  * el análisis, el simulador y el informe.
  */
 
 /** Tramos del procedimiento: [% mínimo, puntos], de mayor a menor. */
 export const PROCEDURE_TIERS: Record<Exclude<KpiKey, 'PROD'>, [number, number][]> = {
-  CV: [[100, 3], [90, 1]],
-  CT: [[100, 3], [90, 1]],
-  AC: [[70, 3], [50, 1]],
-  ANC: [[100, 3]],
+  CV: [[100, 3], [90, 2], [80, 1]],
+  CT: [[100, 3], [90, 2], [80, 1]],
+  AC: [[70, 3], [60, 2], [50, 1]],
+  ANC: [[100, 3], [50, 1.5]],
 };
 
 export const KPI_LABEL: Record<KpiKey, string> = {
@@ -46,12 +49,8 @@ export const statusScaleText = (basis: Basis = 'procedimiento') => {
 };
 
 export const RULES = {
-  /** Excel: % del objetivo para cumplir un indicador de ventas, clientes o cartera. */
-  cumplePct: 100,
-  /** Excel: % del objetivo para cumplir cobranza (el Excel marca SI desde 0,90). */
-  cobranzaPct: 90,
-  /** Excel: el objetivo de atención de cartera es el 70% de la cartera total. */
-  carteraObjetivo: 0.7,
+  /** Excel: % de la meta de un producto Pruven desde el que suma sus 0,5 pts. */
+  productoPct: 80,
   ptsVentaPruven: 0.5,
   ptsDefault: 3,
 } as const;
@@ -59,16 +58,16 @@ export const RULES = {
 /** Porcentajes de incentivo sobre la base de cálculo, según el procedimiento. */
 export const INCENTIVES: Record<Line, { key: 'CV' | 'CT' | 'AC' | 'ANC'; label: string; pct: number; base: string }[]> = {
   Pegutil: [
-    { key: 'CV', label: 'Mayor incremento de ventas', pct: 0.65, base: 'Ventas totales en el mes' },
+    { key: 'CV', label: 'Mayor crecimiento en ventas', pct: 0.7, base: 'Ventas totales del mes' },
     { key: 'CT', label: 'Cobranza a tiempo', pct: 0.45, base: 'Cobranza realizada en el mes' },
-    { key: 'AC', label: 'Atención de cartera', pct: 0.13, base: 'Ventas totales en el mes' },
-    { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales en el mes' },
+    { key: 'AC', label: 'Atención de cartera', pct: 0.13, base: 'Ventas totales del mes' },
+    { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales del mes' },
   ],
   Pruven: [
-    { key: 'CV', label: 'Mayor incremento de ventas', pct: 0.65, base: 'Ventas totales en el mes' },
+    { key: 'CV', label: 'Mayor crecimiento en ventas', pct: 0.7, base: 'Ventas totales del mes' },
     { key: 'CT', label: 'Cobranza a tiempo', pct: 0.45, base: 'Cobranza realizada en el mes' },
-    { key: 'AC', label: 'Atención de cartera', pct: 0.12, base: 'Ventas totales en el mes' },
-    { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales en el mes' },
+    { key: 'AC', label: 'Atención de cartera', pct: 0.12, base: 'Ventas totales del mes' },
+    { key: 'ANC', label: 'Activación de nuevos clientes', pct: 0.1, base: 'Ventas totales del mes' },
   ],
 };
 
@@ -79,18 +78,21 @@ export function statusOf(score: number, basis: Basis = 'excel'): Status {
 
 export const isCobranza = (name: string) => /COBRANZA/i.test(name);
 
-/** Umbral (en %) del Excel para un indicador. */
-export const thresholdOf = (item: Pick<Item, 'name'>) => (isCobranza(item.name) ? RULES.cobranzaPct : RULES.cumplePct);
-
-export function meetsTarget(item: Pick<Item, 'name'>, pct: number): boolean {
-  return pct >= thresholdOf(item) - 1e-9;
+/** Indicador del procedimiento al que corresponde una fila del Excel (PROD = venta de un producto Pruven). */
+export function kpiOf(block: Pick<Block, 'line'>, item: Pick<Item, 'name' | 'kpi'>): KpiKey | null {
+  if (item.kpi) return item.kpi;
+  const n = item.name.toUpperCase();
+  if (isCobranza(n)) return 'CT';
+  if (/CARTERA/.test(n)) return 'AC';
+  if (/NUEVOS CLIENTES/.test(n)) return 'ANC';
+  if (/^\s*VENTAS/.test(n)) return block.line === 'Pruven' && !/SACOS|GALONES/.test(n) ? 'PROD' : 'CV';
+  return null;
 }
 
 /** Puntos que vale un indicador cumplido. */
 export function itemMax(block: Pick<Block, 'line'>, item: Pick<Item, 'name' | 'pts' | 'max'>): number {
   if (item.max != null) return item.max;
-  if (item.pts > 0) return item.pts;
-  return block.line === 'Pruven' && /^VENTAS/i.test(item.name) ? RULES.ptsVentaPruven : RULES.ptsDefault;
+  return kpiOf(block, item) === 'PROD' ? RULES.ptsVentaPruven : RULES.ptsDefault;
 }
 
 /** Puntos según los tramos del procedimiento. */
@@ -100,35 +102,50 @@ export function tierPoints(kpi: KpiKey, pct: number): number {
   return 0;
 }
 
-/** Puntos de un indicador con un % dado, según la regla que corresponde al indicador. */
+/** Puntos de un indicador con un % dado: tramos del procedimiento; un producto Pruven del Excel, 0,5 desde el 80%. */
 export function scoreAt(block: Pick<Block, 'line'>, item: Item, pct: number): number {
-  if (item.kpi) return tierPoints(item.kpi, pct);
-  return meetsTarget(item, pct) ? itemMax(block, item) : 0;
+  const k = kpiOf(block, item);
+  if (!k) return pct >= 100 - 1e-9 ? itemMax(block, item) : 0;
+  if (k === 'PROD') return item.kpi ? 0 : pct >= RULES.productoPct - 1e-9 ? itemMax(block, item) : 0;
+  return tierPoints(k, pct);
 }
 
-/** Puntos que corresponden según la regla del Excel (no según lo que dice el Excel). */
+/** Puntos que corresponden según la regla (no según lo que dice el Excel). */
 export function rulePoints(block: Pick<Block, 'line'>, item: Item): number {
   if (item.pct == null) return item.pts;
   return scoreAt(block, item, item.pct);
 }
 
+/** Con otro valor real, ¿cambian los puntos del indicador? */
+export function pointsChange(block: Pick<Block, 'line'>, item: Item, a: number, b: number): boolean {
+  return scoreAt(block, item, a) !== scoreAt(block, item, b);
+}
+
 /** Siguiente tramo alcanzable de un indicador: % a lograr y puntos que suma. */
 export function nextStep(block: Pick<Block, 'line'>, item: Item): { pct: number; gain: number } | null {
   if (item.pct == null || !item.obj) return null;
-  if (item.kpi) {
-    if (item.kpi === 'PROD') return null;
-    const up = PROCEDURE_TIERS[item.kpi].filter(([, p]) => p > item.pts).sort((a, b) => a[0] - b[0])[0];
-    return up ? { pct: up[0], gain: up[1] - item.pts } : null;
+  const k = kpiOf(block, item);
+  if (k === 'PROD') {
+    if (item.kpi || item.pts > 0) return null;
+    return { pct: RULES.productoPct, gain: itemMax(block, item) };
   }
-  if (item.ok) return null;
-  return { pct: thresholdOf(item), gain: itemMax(block, item) - item.pts };
+  if (!k) return item.ok ? null : { pct: 100, gain: itemMax(block, item) - item.pts };
+  const up = PROCEDURE_TIERS[k].filter(([, p]) => p > item.pts).sort((a, b) => a[0] - b[0])[0];
+  return up ? { pct: up[0], gain: up[1] - item.pts } : null;
+}
+
+/** "3 pts desde 100%, 2 pts desde 90% y 1 pt desde 80%" */
+export function tiersText(k: Exclude<KpiKey, 'PROD'>): string {
+  const parts = PROCEDURE_TIERS[k].map(([min, p]) => `${String(p).replace('.', ',')} ${p === 1 ? 'pt' : 'pts'} desde el ${min}%`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}` : parts[0];
 }
 
 export function rulesText(basis: Basis): string {
   const estados = `Estado por línea (máx. 12 pts): ${statusScaleText(basis)}.`;
+  const tramos = `crecimiento en ventas y cobranza a tiempo dan ${tiersText('CV')}; atención de cartera (sobre su objetivo), ${tiersText('AC')}; nuevos clientes, ${tiersText('ANC')}.`;
   if (basis === 'procedimiento')
-    return `Procedimiento de KPI's (08/01/2025): crecimiento en ventas y cobranza dan 3 pts desde el 100% y 1 pt desde el 90%; atención de cartera, 3 pts desde el 70% de la cartera y 1 pt desde el 50%; nuevos clientes, 3 pts si cumple. ${estados}`;
-  return `Reglas del Excel: un indicador se cumple con el ${RULES.cumplePct}% del objetivo (cobranza con el ${RULES.cobranzaPct}%). ${estados}`;
+    return `Procedimiento de KPI's (13/10/2026): ${tramos} En Pruven el crecimiento se mide con los galones totales. ${estados}`;
+  return `Puntos del Excel: ${tramos} En Pruven el crecimiento se reparte en ventas por producto, 0,5 pts cada una desde el ${RULES.productoPct}% de su meta. ${estados}`;
 }
 
 /** Texto de la regla del Excel; se mantiene para quien lo importe con el nombre anterior. */

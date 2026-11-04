@@ -1,6 +1,6 @@
 import { fmt } from './format';
 import { findSeller, matchProduct } from './match';
-import { meetsTarget } from './rules';
+import { pointsChange } from './rules';
 import type { CalcEntry, DataAlert, Item, Line, MonthReport, Seller } from './types';
 
 export type { CalcEntry };
@@ -110,9 +110,9 @@ export function checkCalculos(d: MonthReport, entries: CalcEntry[]): DataAlert[]
     if (e.kind !== 'cartera' && diff(v.meta, e.meta))
       alerts.push({ level: 'warn', text: `${where}: la meta es ${fmt(v.meta, digits(v.meta, e.meta))} en su hoja y ${fmt(e.meta, digits(v.meta, e.meta))} en CALCULOS.` });
     if (diff(v.real, e.real)) {
-      // Importa más si con el otro valor cambia el cumplimiento, o si es un total (sacos o galones).
+      // Importa más si con el otro valor cambian los puntos, o si es un total (sacos o galones).
       let flips = false;
-      if (v.item && v.item.obj) flips = meetsTarget(v.item, ((v.real ?? 0) / v.item.obj) * 100) !== meetsTarget(v.item, ((e.real ?? 0) / v.item.obj) * 100);
+      if (v.item && v.item.obj) flips = pointsChange({ line: e.line }, v.item, ((v.real ?? 0) / v.item.obj) * 100, ((e.real ?? 0) / v.item.obj) * 100);
       const level: DataAlert['level'] = flips || e.kind === 'sacos' || e.kind === 'galones' ? 'warn' : 'info';
       alerts.push({ level, text: `${where}: ${fmt(v.real, digits(v.real, e.real))} en su hoja y ${fmt(e.real, digits(v.real, e.real))} en CALCULOS${flips ? '; con el valor de CALCULOS cambia el cumplimiento' : ''}.` });
     }

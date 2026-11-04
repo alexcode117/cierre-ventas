@@ -1,6 +1,6 @@
 import { fmt, titleCase } from './format';
 import { findSeller } from './match';
-import { INCENTIVES, RULES } from './rules';
+import { INCENTIVES } from './rules';
 import type { Award, Insight, KpiKey, Line, MonthReport, Seller } from './types';
 
 export type AwardStatus = 'ok' | 'tie' | 'mismatch' | 'unverifiable' | 'missing';
@@ -44,7 +44,7 @@ export function kpiPct(s: Seller, line: Line, key: Exclude<KpiKey, 'PROD'>): num
   if (key === 'CT') return find(/COBRANZA/)?.pct ?? null;
   if (key === 'ANC') return find(/NUEVOS CLIENTES/)?.pct ?? null;
   const c = find(/CARTERA/);
-  return c?.obj ? pct(c.real, c.obj / RULES.carteraObjetivo) : null;
+  return c?.obj ? pct(c.real, c.obj) : null;
 }
 
 // Crecimiento en ventas se mide en % de la meta; cobranza, cartera y nuevos clientes en valor absoluto

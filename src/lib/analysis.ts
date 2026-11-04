@@ -3,7 +3,7 @@ import { findSeller, findZona, matchProduct } from './match';
 import { itemMax, nextStep, statusOf } from './rules';
 import type { Insight, Line, MonthReport, Status } from './types';
 
-export { itemMax, meetsTarget } from './rules';
+export { itemMax } from './rules';
 
 export interface PointLoss { line: Line; name: string; lost: number; max: number; fails: number; n: number; avgPct: number }
 export interface NearMiss { seller: string; line: Line; name: string; pct: number; needText: string; gain: number; from: Status; to: Status; score: number; newScore: number }

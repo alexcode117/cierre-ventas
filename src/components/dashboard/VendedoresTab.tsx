@@ -169,9 +169,9 @@ export default function VendedoresTab({ session, onSimulate }: { session: Sessio
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line px-4 py-3 text-[12.5px] text-ink-2">
             <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-good-bg ring-1 ring-good" />{session.basis === 'procedimiento' ? '3 pts' : '100% o más'}</span>
-            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-warn-bg ring-1 ring-warn" />{session.basis === 'procedimiento' ? '1 pt' : '80 a 99%'}</span>
+            <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-warn-bg ring-1 ring-warn" />{session.basis === 'procedimiento' ? '1 a 2 pts' : '80 a 99%'}</span>
             <span className="inline-flex items-center gap-1.5"><i className="size-3 rounded-sm bg-crit-bg ring-1 ring-crit" />{session.basis === 'procedimiento' ? '0 pts' : 'menos de 80%'}</span>
-            {session.basis === 'procedimiento' && <span>Atención de cartera: % de la cartera total (objetivo del Excel ÷ 0,7). Ventas por producto: informativas, sin puntos.</span>}
+            {session.basis === 'procedimiento' && <span>Atención de cartera: % de su objetivo. Ventas por producto: informativas, sin puntos.</span>}
             {mode === 'delta' && <span>Verde: mejoró. Rojo: empeoró (puntos porcentuales frente al mes anterior).</span>}
           </div>
         </Card>
